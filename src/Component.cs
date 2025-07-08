@@ -226,40 +226,40 @@ namespace Wasmtime
             }
         }
         
-        // /// <summary>
-        // /// Deserializes a previously serialized component from a file.
-        // /// </summary>
-        // /// <param name="engine">The engine to deserialize the component with.</param>
-        // /// <param name="name">The name of the deserialized module.</param>
-        // /// <param name="path">The path to the previously serialized module.</param>
-        // /// <returns>Returns the <see cref="Module" /> that was previously serialized.</returns>
-        // /// <remarks>The file's contents must come from a previous call to <see cref="Module.Serialize" />.</remarks>
-        // public static Module DeserializeFile(Engine engine, string name, string path)
-        // {
-        //     if (engine is null)
-        //     {
-        //         throw new ArgumentNullException(nameof(engine));
-        //     }
-        //
-        //     if (string.IsNullOrEmpty(name))
-        //     {
-        //         throw new ArgumentNullException(nameof(name));
-        //     }
-        //
-        //     var error = Native.wasmtime_module_deserialize_file(engine.NativeHandle, path, out var handle);
-        //     if (error != IntPtr.Zero)
-        //     {
-        //         throw WasmtimeException.FromOwnedError(error);
-        //     }
-        //
-        //     return new Module(handle, name);
-        // }
+        /// <summary>
+        /// Deserializes a previously serialized component from a file.
+        /// </summary>
+        /// <param name="engine">The engine to deserialize the component with.</param>
+        /// <param name="name">The name of the deserialized component.</param>
+        /// <param name="path">The path to the previously serialized component.</param>
+        /// <returns>Returns the <see cref="Component" /> that was previously serialized.</returns>
+        /// <remarks>The file's contents must come from a previous call to <see cref="Component.Serialize" />.</remarks>
+        public static Component DeserializeFile(Engine engine, string name, string path)
+        {
+            if (engine is null)
+            {
+                throw new ArgumentNullException(nameof(engine));
+            }
+        
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+        
+            var error = Native.wasmtime_component_deserialize_file(engine.NativeHandle, path, out var handle);
+            if (error != IntPtr.Zero)
+            {
+                throw WasmtimeException.FromOwnedError(error);
+            }
+        
+            return new Component(handle, name);
+        }
         //
         // /// <summary>
         // /// Convert WAT (Web Assembly Text) into WASM bytes
         // /// </summary>
         // /// <param name="wat">A string containing WAT (Web Assembly Text)</param>
-        // /// <returns>Returns a byte array containing the WebAssembly module represented by the given text.</returns>
+        // /// <returns>Returns a byte array containing the WebAssembly component represented by the given text.</returns>
         // /// <exception cref="ArgumentNullException">Thrown if text is null</exception>
         // /// <exception cref="WasmtimeException">Thrown if text is not valid WAT</exception>
         // public static byte[] ConvertText(string wat)
@@ -374,8 +374,8 @@ namespace Wasmtime
             [DllImport(Engine.LibraryName)]
             public static extern unsafe IntPtr wasmtime_component_deserialize(Engine.Handle engine, byte* bytes, UIntPtr size, out IntPtr handle);
             
-            // [DllImport(Engine.LibraryName)]
-            // public static extern IntPtr wasmtime_module_deserialize_file(Engine.Handle engine, [MarshalAs(Extensions.LPUTF8Str)] string path, out IntPtr handle);
+            [DllImport(Engine.LibraryName)]
+            public static extern IntPtr wasmtime_component_deserialize_file(Engine.Handle engine, [MarshalAs(Extensions.LPUTF8Str)] string path, out IntPtr handle);
         }
 
         private readonly Handle handle;
