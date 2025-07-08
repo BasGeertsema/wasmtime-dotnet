@@ -14,6 +14,22 @@ namespace Wasmtime
     }
 
     [StructLayout(LayoutKind.Explicit)]
+    internal record struct ExternComponentFunc
+    {
+        static ExternComponentFunc() => Debug.Assert(Marshal.SizeOf(typeof(ExternComponentFunc)) == 24);
+
+        // Use explicit offsets because the struct in the C api has extra padding
+        // due to field alignments. The total struct size is 24 bytes.
+        
+        [FieldOffset(0)]
+        public ulong store;
+        [FieldOffset(8)]
+        public uint __private1;
+        [FieldOffset(16)]
+        public uint __private2;
+    }
+
+    [StructLayout(LayoutKind.Explicit)]
     internal record struct ExternTable
     {
         static ExternTable() => Debug.Assert(Marshal.SizeOf(typeof(ExternTable)) == 24);
@@ -50,6 +66,15 @@ namespace Wasmtime
     internal record struct ExternInstance
     {
         static ExternInstance() => Debug.Assert(Marshal.SizeOf(typeof(ExternInstance)) == 16);
+
+        public ulong store;
+        public nuint __private;
+    }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    internal record struct ExternComponentInstance
+    {
+        static ExternComponentInstance() => Debug.Assert(Marshal.SizeOf(typeof(ExternComponentInstance)) == 16);
 
         public ulong store;
         public nuint __private;

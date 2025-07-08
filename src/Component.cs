@@ -293,6 +293,30 @@ namespace Wasmtime
         //     }
         // }
 
+        /// <summary>
+        /// Looks up a specific export of this component by name, optionally nested within the instance provided
+        /// </summary>
+        /// <param name="name">The name of the export</param>
+        /// <param name="lookupInstance">optional instance to look up in</param>
+        /// <returns>Export index if found, else null</returns>
+        public ComponentExportIndexHandle? GetExportIndex(string name, ComponentExportIndexHandle? lookupInstance = null)
+        {
+            using var nameBytes = name.ToUTF8(stackalloc byte[Math.Min(64, name.Length * 2)]);
+
+            unsafe
+            {
+                fixed (byte* namePtr = nameBytes.Span)
+                {
+                    var index = Native.wasmtime_component_get_export_index(
+                        handle,
+                        lookupInstance?.DangerousGetHandle() ?? IntPtr.Zero,
+                        namePtr,
+                        (nuint)nameBytes.Length);
+                    return index != IntPtr.Zero ? new(index) : null;
+                }
+            }
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -355,6 +379,9 @@ namespace Wasmtime
 
             [DllImport(Engine.LibraryName)]
             public static extern void wasmtime_component_delete(IntPtr module);
+            
+            [DllImport(Engine.LibraryName)]
+            public static unsafe extern IntPtr wasmtime_component_get_export_index(Component.Handle component, IntPtr instanceExportIndex, byte* name, nuint nameLength);
 
             // [DllImport(Engine.LibraryName)]
             // public static extern void wasmtime_module_imports(IntPtr module, out ImportTypeArray imports);
