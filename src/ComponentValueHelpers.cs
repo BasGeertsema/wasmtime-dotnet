@@ -154,6 +154,7 @@ namespace Wasmtime
                                     string s => s,
                                     object[] nested => ComponentValueBox.FromTuple(nested),
                                     (string, ComponentValueBox)[] record => ComponentValueBox.FromRecord(record),
+                                    ValueTuple<string, ComponentValueBox?> variantTuple => ComponentValueBox.FromVariant(variantTuple.Item1, variantTuple.Item2),
                                     _ => throw new NotSupportedException($"Unsupported tuple element type: {element?.GetType()}")
                                 };
                                 componentValues[i] = FromValueBox(store, elementBox);
@@ -202,6 +203,36 @@ namespace Wasmtime
                         {
                             size = (nuint)fieldCount,
                             data = recordEntries
+                        };
+                    }
+                    break;
+
+                case ComponentValueKind.Variant:
+                    if (box.ObjectValue is ValueTuple<string, ComponentValueBox?> variant)
+                    {
+                        var (discriminant, payload) = variant;
+                        
+                        // Allocate and copy discriminant name
+                        var discriminantBytes = Encoding.UTF8.GetBytes(discriminant);
+                        var discriminantPtr = Marshal.AllocHGlobal(discriminantBytes.Length);
+                        Marshal.Copy(discriminantBytes, 0, discriminantPtr, discriminantBytes.Length);
+                        
+                        // Allocate space for the payload value (if any)
+                        ComponentValue* payloadValue = null;
+                        if (payload.HasValue)
+                        {
+                            payloadValue = (ComponentValue*)Marshal.AllocHGlobal(sizeof(ComponentValue));
+                            *payloadValue = FromValueBox(store, payload.Value);
+                        }
+                        
+                        value.of.variant = new ValVariant
+                        {
+                            discriminant = new WasmName
+                            {
+                                size = (nuint)discriminantBytes.Length,
+                                data = (byte*)discriminantPtr
+                            },
+                            value = payloadValue
                         };
                     }
                     break;
@@ -351,6 +382,7 @@ namespace Wasmtime
                                 ComponentValueKind.List => elementBox.ObjectValue, // Keep as array
                                 ComponentValueKind.Tuple => elementBox.AsTuple(), // Nested tuple
                                 ComponentValueKind.Record => elementBox.AsRecord(), // Nested record
+                                ComponentValueKind.Variant => elementBox.AsVariant(), // Nested variant
                                 _ => throw new NotSupportedException($"Unsupported tuple element kind: {elementBox.Kind}")
                             };
                             tupleElements[i] = elementValue!;
@@ -389,6 +421,25 @@ namespace Wasmtime
                     }
                     // Return an empty record
                     return ComponentValueBox.FromRecord(Array.Empty<(string, ComponentValueBox)>());
+
+                case ComponentValueKind.Variant:
+                    // Convert discriminant name from WasmName
+                    string discriminantName = string.Empty;
+                    if (value.of.variant.discriminant.data != null && value.of.variant.discriminant.size > 0)
+                    {
+                        byte[] discriminantBytes = new byte[value.of.variant.discriminant.size];
+                        Marshal.Copy((IntPtr)value.of.variant.discriminant.data, discriminantBytes, 0, (int)value.of.variant.discriminant.size);
+                        discriminantName = Encoding.UTF8.GetString(discriminantBytes);
+                    }
+                    
+                    // Convert payload value if present
+                    ComponentValueBox? payloadValue = null;
+                    if (value.of.variant.value != null)
+                    {
+                        payloadValue = ToValueBox(store, *value.of.variant.value);
+                    }
+                    
+                    return ComponentValueBox.FromVariant(discriminantName, payloadValue);
 
                 // TODO: Implement complex types
                 default:
@@ -466,7 +517,27 @@ namespace Wasmtime
                 value->of.record.size = 0;
             }
 
-            // TODO: Free other complex types (variant, etc.)
+            // Free allocated variants
+            if (value->kind == ComponentValueKind.Variant)
+            {
+                // Free discriminant name
+                if (value->of.variant.discriminant.data != null)
+                {
+                    Marshal.FreeHGlobal((IntPtr)value->of.variant.discriminant.data);
+                    value->of.variant.discriminant.data = null;
+                    value->of.variant.discriminant.size = 0;
+                }
+                
+                // Free payload value if present
+                if (value->of.variant.value != null)
+                {
+                    ReleaseValue(value->of.variant.value);
+                    Marshal.FreeHGlobal((IntPtr)value->of.variant.value);
+                    value->of.variant.value = null;
+                }
+            }
+
+            // TODO: Free other complex types (enum, option, result, flags)
         }
 
         /// <summary>

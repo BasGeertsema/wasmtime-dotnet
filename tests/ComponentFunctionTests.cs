@@ -520,6 +520,76 @@ namespace Wasmtime.Tests
             resultRecord[1].Item2.AsU8().Should().Be(0);
         }
 
+        [Fact]
+        public void ItCanInvokeEchoVariantFunction()
+        {
+            var echoFunc = GetComponentFunction("echo-variant");
+            
+            // Test case 1: pending (no payload)
+            var pendingVariant = ComponentValueBox.FromVariant("pending", null);
+            var args = new ComponentValueBox[] { pendingVariant };
+            
+            var result = echoFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            
+            var resultVariant = ((ComponentValueBox)result!).AsVariant();
+            resultVariant.Should().NotBeNull();
+            resultVariant!.Value.Item1.Should().Be("pending");
+            resultVariant.Value.Item2.Should().BeNull();
+            
+            // Test case 2: shipped(s32)
+            var shippedVariant = ComponentValueBox.FromVariant("shipped", (ComponentValueBox)42);
+            args = new ComponentValueBox[] { shippedVariant };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultVariant = ((ComponentValueBox)result!).AsVariant();
+            resultVariant.Should().NotBeNull();
+            resultVariant!.Value.Item1.Should().Be("shipped");
+            resultVariant.Value.Item2.Should().NotBeNull();
+            resultVariant.Value.Item2!.Value.AsS32().Should().Be(42);
+            
+            // Test case 3: delivered(string)
+            var deliveredVariant = ComponentValueBox.FromVariant("delivered", (ComponentValueBox)"Package delivered to recipient");
+            args = new ComponentValueBox[] { deliveredVariant };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultVariant = ((ComponentValueBox)result!).AsVariant();
+            resultVariant.Should().NotBeNull();
+            resultVariant!.Value.Item1.Should().Be("delivered");
+            resultVariant.Value.Item2.Should().NotBeNull();
+            resultVariant.Value.Item2!.Value.AsString().Should().Be("Package delivered to recipient");
+            
+            // Test with negative number for shipped
+            shippedVariant = ComponentValueBox.FromVariant("shipped", (ComponentValueBox)(-100));
+            args = new ComponentValueBox[] { shippedVariant };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultVariant = ((ComponentValueBox)result!).AsVariant();
+            resultVariant.Should().NotBeNull();
+            resultVariant!.Value.Item1.Should().Be("shipped");
+            resultVariant.Value.Item2.Should().NotBeNull();
+            resultVariant.Value.Item2!.Value.AsS32().Should().Be(-100);
+            
+            // Test with empty string for delivered
+            deliveredVariant = ComponentValueBox.FromVariant("delivered", (ComponentValueBox)"");
+            args = new ComponentValueBox[] { deliveredVariant };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultVariant = ((ComponentValueBox)result!).AsVariant();
+            resultVariant.Should().NotBeNull();
+            resultVariant!.Value.Item1.Should().Be("delivered");
+            resultVariant.Value.Item2.Should().NotBeNull();
+            resultVariant.Value.Item2!.Value.AsString().Should().Be("");
+        }
+
         [Fact(Skip = "Causes crash when using interface export as lookup context")]
         public void DemonstratesComponentExportTraversal()
         {

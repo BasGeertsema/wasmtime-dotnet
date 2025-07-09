@@ -186,6 +186,15 @@ namespace Wasmtime
         }
 
         /// <summary>
+        /// "Unbox" a variant value.
+        /// </summary>
+        public (string, ComponentValueBox?)? AsVariant()
+        {
+            ThrowIfNotOfCorrectKind(ComponentValueKind.Variant);
+            return ObjectValue as (string, ComponentValueBox?)?;
+        }
+
+        /// <summary>
         /// "Unbox" as a generic type.
         /// </summary>
         public T? As<T>() where T : class
@@ -327,6 +336,14 @@ namespace Wasmtime
         public static ComponentValueBox FromRecord((string, ComponentValueBox)[] fields)
         {
             return new ComponentValueBox(ComponentValueKind.Record, fields);
+        }
+
+        /// <summary>
+        /// Create a ComponentValueBox from a variant with a discriminant and optional payload
+        /// </summary>
+        public static ComponentValueBox FromVariant(string discriminant, ComponentValueBox? payload)
+        {
+            return new ComponentValueBox(ComponentValueKind.Variant, (discriminant, payload));
         }
 
         /// <summary>
