@@ -177,6 +177,15 @@ namespace Wasmtime
         }
 
         /// <summary>
+        /// "Unbox" a record value.
+        /// </summary>
+        public (string, ComponentValueBox)[]? AsRecord()
+        {
+            ThrowIfNotOfCorrectKind(ComponentValueKind.Record);
+            return ObjectValue as (string, ComponentValueBox)[];
+        }
+
+        /// <summary>
         /// "Unbox" as a generic type.
         /// </summary>
         public T? As<T>() where T : class
@@ -310,6 +319,14 @@ namespace Wasmtime
         public static ComponentValueBox FromTuple(object[] values)
         {
             return new ComponentValueBox(ComponentValueKind.Tuple, values);
+        }
+
+        /// <summary>
+        /// Create a ComponentValueBox from a record with named fields
+        /// </summary>
+        public static ComponentValueBox FromRecord((string, ComponentValueBox)[] fields)
+        {
+            return new ComponentValueBox(ComponentValueKind.Record, fields);
         }
 
         /// <summary>

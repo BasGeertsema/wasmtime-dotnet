@@ -153,6 +153,7 @@ namespace Wasmtime
                                     char c => c,
                                     string s => s,
                                     object[] nested => ComponentValueBox.FromTuple(nested),
+                                    (string, ComponentValueBox)[] record => ComponentValueBox.FromRecord(record),
                                     _ => throw new NotSupportedException($"Unsupported tuple element type: {element?.GetType()}")
                                 };
                                 componentValues[i] = FromValueBox(store, elementBox);
@@ -163,6 +164,44 @@ namespace Wasmtime
                         {
                             size = (nuint)elementCount,
                             data = componentValues
+                        };
+                    }
+                    break;
+
+                case ComponentValueKind.Record:
+                    if (box.ObjectValue is (string, ComponentValueBox)[] recordFields)
+                    {
+                        var fieldCount = recordFields.Length;
+                        ValRecordEntry* recordEntries = null;
+                        
+                        if (fieldCount > 0)
+                        {
+                            recordEntries = (ValRecordEntry*)Marshal.AllocHGlobal(fieldCount * sizeof(ValRecordEntry));
+                            
+                            for (int i = 0; i < fieldCount; i++)
+                            {
+                                var (name, fieldValue) = recordFields[i];
+                                
+                                // Allocate and copy field name
+                                var nameBytes = Encoding.UTF8.GetBytes(name);
+                                var namePtr = Marshal.AllocHGlobal(nameBytes.Length);
+                                Marshal.Copy(nameBytes, 0, namePtr, nameBytes.Length);
+                                
+                                recordEntries[i].name = new WasmName
+                                {
+                                    size = (nuint)nameBytes.Length,
+                                    data = (byte*)namePtr
+                                };
+                                
+                                // Convert field value
+                                recordEntries[i].val = FromValueBox(store, fieldValue);
+                            }
+                        }
+                        
+                        value.of.record = new ValRecord
+                        {
+                            size = (nuint)fieldCount,
+                            data = recordEntries
                         };
                     }
                     break;
@@ -311,6 +350,7 @@ namespace Wasmtime
                                 ComponentValueKind.String => elementBox.AsString(),
                                 ComponentValueKind.List => elementBox.ObjectValue, // Keep as array
                                 ComponentValueKind.Tuple => elementBox.AsTuple(), // Nested tuple
+                                ComponentValueKind.Record => elementBox.AsRecord(), // Nested record
                                 _ => throw new NotSupportedException($"Unsupported tuple element kind: {elementBox.Kind}")
                             };
                             tupleElements[i] = elementValue!;
@@ -320,6 +360,35 @@ namespace Wasmtime
                     }
                     // Return an empty tuple
                     return ComponentValueBox.FromTuple(Array.Empty<object>());
+
+                case ComponentValueKind.Record:
+                    if (value.of.record.size > 0 && value.of.record.data != null)
+                    {
+                        var recordFields = new (string, ComponentValueBox)[(int)value.of.record.size];
+                        
+                        for (int i = 0; i < (int)value.of.record.size; i++)
+                        {
+                            var entry = value.of.record.data[i];
+                            
+                            // Convert field name from WasmName
+                            string fieldName = string.Empty;
+                            if (entry.name.data != null && entry.name.size > 0)
+                            {
+                                byte[] nameBytes = new byte[entry.name.size];
+                                Marshal.Copy((IntPtr)entry.name.data, nameBytes, 0, (int)entry.name.size);
+                                fieldName = Encoding.UTF8.GetString(nameBytes);
+                            }
+                            
+                            // Convert field value
+                            var fieldValue = ToValueBox(store, entry.val);
+                            
+                            recordFields[i] = (fieldName, fieldValue);
+                        }
+                        
+                        return ComponentValueBox.FromRecord(recordFields);
+                    }
+                    // Return an empty record
+                    return ComponentValueBox.FromRecord(Array.Empty<(string, ComponentValueBox)>());
 
                 // TODO: Implement complex types
                 default:
@@ -373,7 +442,31 @@ namespace Wasmtime
                 value->of.tuple.size = 0;
             }
 
-            // TODO: Free complex types (records, etc.)
+            // Free allocated records
+            if (value->kind == ComponentValueKind.Record && value->of.record.data != null)
+            {
+                // First free any field names and nested values in the record
+                for (nuint i = 0; i < value->of.record.size; i++)
+                {
+                    // Free field name
+                    if (value->of.record.data[i].name.data != null)
+                    {
+                        Marshal.FreeHGlobal((IntPtr)value->of.record.data[i].name.data);
+                        value->of.record.data[i].name.data = null;
+                        value->of.record.data[i].name.size = 0;
+                    }
+                    
+                    // Free field value
+                    ReleaseValue(&value->of.record.data[i].val);
+                }
+                
+                // Then free the record array itself
+                Marshal.FreeHGlobal((IntPtr)value->of.record.data);
+                value->of.record.data = null;
+                value->of.record.size = 0;
+            }
+
+            // TODO: Free other complex types (variant, etc.)
         }
 
         /// <summary>

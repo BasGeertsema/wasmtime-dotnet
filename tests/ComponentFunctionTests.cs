@@ -448,6 +448,78 @@ namespace Wasmtime.Tests
             resultTuple[1].Should().BeOfType<int>().Which.Should().Be(0);
         }
 
+        [Fact]
+        public void ItCanInvokeEchoRecordFunction()
+        {
+            var echoFunc = GetComponentFunction("echo-record");
+            
+            // Create a record with name and age fields (person record)
+            var fields = new (string, ComponentValueBox)[]
+            {
+                ("name", "Alice"),
+                ("age", (byte)30)
+            };
+            var recordValue = ComponentValueBox.FromRecord(fields);
+            var args = new ComponentValueBox[] { recordValue };
+            
+            var result = echoFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            
+            var resultRecord = ((ComponentValueBox)result!).AsRecord();
+            resultRecord.Should().NotBeNull();
+            resultRecord.Should().HaveCount(2);
+            
+            // Check first field (name)
+            resultRecord![0].Item1.Should().Be("name");
+            resultRecord[0].Item2.AsString().Should().Be("Alice");
+            
+            // Check second field (age)
+            resultRecord[1].Item1.Should().Be("age");
+            resultRecord[1].Item2.AsU8().Should().Be(30);
+            
+            // Test with different values
+            fields = new (string, ComponentValueBox)[]
+            {
+                ("name", "Bob"),
+                ("age", (byte)25)
+            };
+            recordValue = ComponentValueBox.FromRecord(fields);
+            args = new ComponentValueBox[] { recordValue };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultRecord = ((ComponentValueBox)result!).AsRecord();
+            resultRecord.Should().NotBeNull();
+            resultRecord.Should().HaveCount(2);
+            
+            resultRecord![0].Item1.Should().Be("name");
+            resultRecord[0].Item2.AsString().Should().Be("Bob");
+            resultRecord[1].Item1.Should().Be("age");
+            resultRecord[1].Item2.AsU8().Should().Be(25);
+            
+            // Test with empty name
+            fields = new (string, ComponentValueBox)[]
+            {
+                ("name", ""),
+                ("age", (byte)0)
+            };
+            recordValue = ComponentValueBox.FromRecord(fields);
+            args = new ComponentValueBox[] { recordValue };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultRecord = ((ComponentValueBox)result!).AsRecord();
+            resultRecord.Should().NotBeNull();
+            resultRecord.Should().HaveCount(2);
+            
+            resultRecord![0].Item1.Should().Be("name");
+            resultRecord[0].Item2.AsString().Should().Be("");
+            resultRecord[1].Item1.Should().Be("age");
+            resultRecord[1].Item2.AsU8().Should().Be(0);
+        }
+
         [Fact(Skip = "Causes crash when using interface export as lookup context")]
         public void DemonstratesComponentExportTraversal()
         {
