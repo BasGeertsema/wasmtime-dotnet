@@ -11,7 +11,7 @@ namespace Wasmtime
         /// <summary>
         /// Determines if the underlying function reference is null.
         /// </summary>
-        public bool IsNull => func.store_id == 0;
+        public bool IsNull => func.store == 0;
 
         /// <summary>
         /// The store this function belongs to.
@@ -190,13 +190,16 @@ namespace Wasmtime
         /// <summary>
         /// Native component function representation matching wasmtime_component_func_t
         /// </summary>
-        [StructLayout(LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Explicit)]
         public struct ComponentFunc
         {
             static ComponentFunc() => System.Diagnostics.Debug.Assert(Marshal.SizeOf(typeof(ComponentFunc)) == 16);
             
-            public ulong store_id;
+            [FieldOffset(0)]
+            public ulong store;
+            [FieldOffset(8)]
             public uint __private1;
+            [FieldOffset(16)]
             public uint __private2;
         }
     }

@@ -176,7 +176,7 @@ namespace Wasmtime.Tests
             {
                 // First check if we can find the export index
                 Console.WriteLine("First, trying TryGetExportIndex for 'add'...");
-                var foundExport = instance.TryGetExportIndex("add", store, businessRulesExport, out var addExportIndex);
+                var foundExport = instance.TryGetExportIndex("add-s32", store, businessRulesExport, out var addExportIndex);
                 Console.WriteLine($"TryGetExportIndex returned: {foundExport}");
                 
                 if (foundExport)
@@ -202,12 +202,12 @@ namespace Wasmtime.Tests
             // Prepare arguments: two u32 values
             var args = new ComponentValueBox[]
             {
-                2u,  // First argument: 2
-                3u   // Second argument: 3
+                2,  // First argument: 2
+                3   // Second argument: 3
             };
             
-            Console.WriteLine($"Arg 0 kind: {args[0].Kind}, value: {args[0].AsU32()}");
-            Console.WriteLine($"Arg 1 kind: {args[1].Kind}, value: {args[1].AsU32()}");
+            Console.WriteLine($"Arg 0 kind: {args[0].Kind}, value: {args[0].AsS32()}");
+            Console.WriteLine($"Arg 1 kind: {args[1].Kind}, value: {args[1].AsS32()}");
             
             // Invoke the function
             var result = addFunc!.Invoke(args);
@@ -217,7 +217,7 @@ namespace Wasmtime.Tests
             result.Should().BeOfType<ComponentValueBox>("result should be a ComponentValueBox");
             
             var resultBox = (ComponentValueBox)result!;
-            resultBox.AsU32().Should().Be(5, "2 + 3 should equal 5");
+            resultBox.AsS32().Should().Be(5, "2 + 3 should equal 5");
         }
 
         [Fact(Skip = "Causes crash when using interface export as lookup context")]
