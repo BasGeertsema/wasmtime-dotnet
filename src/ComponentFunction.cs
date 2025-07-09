@@ -89,50 +89,59 @@ namespace Wasmtime
 
             try
             {
-                // For now, assume we don't know the result count at compile time
+                // For now, assume a single result (common case)
                 // In a real implementation, we'd need to query the function type
-                const int maxResults = 8; // Reasonable maximum for stack allocation
-                var nativeResults = stackalloc ComponentValue[maxResults];
+                const int resultCount = 1;
+                var nativeResults = stackalloc ComponentValue[resultCount];
                 
                 // Initialize results (the C API may require this)
-                for (int i = 0; i < maxResults; i++)
+                for (int i = 0; i < resultCount; i++)
                 {
                     nativeResults[i] = default;
                 }
 
                 // Call the component function
-                var error = Native.wasmtime_component_func_call(
-                    func,
-                    store.Context.handle,
-                    nativeArgs,
-                    (nuint)arguments.Length,
-                    nativeResults,
-                    (nuint)maxResults // This should be the actual result count
-                );
-
-                if (error != IntPtr.Zero)
+                fixed (ComponentFunc* funcPtr = &func)
                 {
-                    throw WasmtimeException.FromOwnedError(error);
+                    var error = Native.wasmtime_component_func_call(
+                        funcPtr,
+                        store.Context.handle,
+                        nativeArgs,
+                        (nuint)arguments.Length,
+                        nativeResults,
+                        (nuint)resultCount
+                    );
+                    
+                    if (error != IntPtr.Zero)
+                    {
+                        throw WasmtimeException.FromOwnedError(error);
+                    }
                 }
 
                 try
                 {
                     // Call post-return as required by the component model
-                    error = Native.wasmtime_component_func_post_return(func, store.Context.handle);
-                    if (error != IntPtr.Zero)
+                    fixed (ComponentFunc* funcPtr = &func)
                     {
-                        throw WasmtimeException.FromOwnedError(error);
+                        var error = Native.wasmtime_component_func_post_return(funcPtr, store.Context.handle);
+                        if (error != IntPtr.Zero)
+                        {
+                            throw WasmtimeException.FromOwnedError(error);
+                        }
                     }
 
-                    // For now, return a simple placeholder
-                    // In a real implementation, we'd convert results back to ComponentValueBox
-                    // and then to appropriate C# objects
+                    // Convert the single result back to ComponentValueBox
+                    if (resultCount == 1)
+                    {
+                        return ComponentValueHelpers.ToValueBox(store, nativeResults[0]);
+                    }
+                    
                     return null;
                 }
                 finally
                 {
                     // Clean up result values
-                    for (int i = 0; i < maxResults; i++)
+                    for (int i = 0; i < resultCount; i++)
                     {
                         ComponentValueHelpers.ReleaseValue(&nativeResults[i]);
                     }
@@ -160,7 +169,7 @@ namespace Wasmtime
         {
             [DllImport(Engine.LibraryName)]
             public static unsafe extern IntPtr wasmtime_component_func_call(
-                in ComponentFunc func,
+                ComponentFunc* func,
                 IntPtr context,
                 ComponentValue* args,
                 nuint args_size,
@@ -169,8 +178,8 @@ namespace Wasmtime
             );
 
             [DllImport(Engine.LibraryName)]
-            public static extern IntPtr wasmtime_component_func_post_return(
-                in ComponentFunc func,
+            public static unsafe extern IntPtr wasmtime_component_func_post_return(
+                ComponentFunc* func,
                 IntPtr context
             );
         }
@@ -184,6 +193,8 @@ namespace Wasmtime
         [StructLayout(LayoutKind.Sequential)]
         public struct ComponentFunc
         {
+            static ComponentFunc() => System.Diagnostics.Debug.Assert(Marshal.SizeOf(typeof(ComponentFunc)) == 16);
+            
             public ulong store_id;
             public uint __private1;
             public uint __private2;

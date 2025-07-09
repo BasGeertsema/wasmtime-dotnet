@@ -69,6 +69,18 @@ namespace Wasmtime
 
 
 
+        /// <summary>
+        /// Add all WASI Preview 2 interfaces to this linker.
+        /// </summary>
+        public void AddWasiPreview2()
+        {
+            var error = Native.wasmtime_component_linker_add_wasip2(handle);
+            if (error != IntPtr.Zero)
+            {
+                throw WasmtimeException.FromOwnedError(error);
+            }
+        }
+
         /// <inheritdoc/>
         public void Dispose()
         {
@@ -103,6 +115,9 @@ namespace Wasmtime
             
             [DllImport(Engine.LibraryName)]
             public static extern IntPtr wasmtime_component_linker_root(ComponentLinker.Handle linker);
+            
+            [DllImport(Engine.LibraryName)]
+            public static extern IntPtr wasmtime_component_linker_add_wasip2(Handle linker);
         }
 
         private readonly Handle handle;

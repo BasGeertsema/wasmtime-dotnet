@@ -11,6 +11,17 @@ namespace Wasmtime
     public class ComponentInstance
     {
         /// <summary>
+        /// Native representation of wasmtime_component_instance_t
+        /// </summary>
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct ComponentInstanceHandle
+        {
+            static ComponentInstanceHandle() => System.Diagnostics.Debug.Assert(Marshal.SizeOf(typeof(ComponentInstanceHandle)) == 16);
+            
+            public ulong store_id;
+            public uint __private;
+        }
+        /// <summary>
         /// Looks up a specific export of this component by name, optionally nested within the instance provided
         /// </summary>
         /// <param name="name">The name of the export</param>
@@ -85,7 +96,7 @@ namespace Wasmtime
             }
         }
         
-        internal ComponentInstance(Store store, ExternComponentInstance instance)
+        internal ComponentInstance(Store store, ComponentInstanceHandle instance)
         {
             if (store is null)
             {
@@ -95,18 +106,34 @@ namespace Wasmtime
             this._store = store;
             this._instance = instance;
         }
+        
+        internal ComponentInstance(Store store, ExternComponentInstance externInstance)
+        {
+            if (store is null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+
+            this._store = store;
+            // Convert ExternComponentInstance to ComponentInstanceHandle
+            this._instance = new ComponentInstanceHandle
+            {
+                store_id = externInstance.store,
+                __private = (uint)externInstance.__private
+            };
+        }
 
         private static class Native
         {
             [DllImport(Engine.LibraryName)]
-            public static extern unsafe IntPtr wasmtime_component_instance_get_export_index(in ExternComponentInstance instance, IntPtr context, IntPtr instanceExportIndex, byte* name, nuint nameLength);
+            public static extern unsafe IntPtr wasmtime_component_instance_get_export_index(in ComponentInstanceHandle instance, IntPtr context, IntPtr instanceExportIndex, byte* name, nuint nameLength);
 
             [DllImport(Engine.LibraryName)]
             [return: MarshalAs(UnmanagedType.I1)]
-            public static extern unsafe bool wasmtime_component_instance_get_func(in ExternComponentInstance instance, IntPtr context, IntPtr exportIndex, ComponentFunction.ComponentFunc* funcOut);
+            public static extern unsafe bool wasmtime_component_instance_get_func(in ComponentInstanceHandle instance, IntPtr context, IntPtr exportIndex, ComponentFunction.ComponentFunc* funcOut);
         }
 
         private readonly Store _store;
-        private readonly ExternComponentInstance _instance;
+        private readonly ComponentInstanceHandle _instance;
     }
 }

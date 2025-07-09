@@ -158,6 +158,8 @@ internal unsafe struct ComponentValueUnion
 [StructLayout(LayoutKind.Sequential)]
 internal unsafe struct ComponentValue
 {
+    static ComponentValue() => System.Diagnostics.Debug.Assert(Marshal.SizeOf(typeof(ComponentValue)) == 24); // 1 byte kind + 7 bytes padding + 16 byte union
+    
     public ComponentValueKind kind;
     public ComponentValueUnion of;
 }
