@@ -126,7 +126,50 @@ namespace Wasmtime
                     }
                     break;
 
-                // TODO: Implement complex types (Record, Tuple, Variant, Enum, Option, Result, Flags)
+                case ComponentValueKind.Tuple:
+                    if (box.ObjectValue is object[] tupleElements)
+                    {
+                        var elementCount = tupleElements.Length;
+                        ComponentValue* componentValues = null;
+                        
+                        if (elementCount > 0)
+                        {
+                            componentValues = (ComponentValue*)Marshal.AllocHGlobal(elementCount * sizeof(ComponentValue));
+                            
+                            for (int i = 0; i < elementCount; i++)
+                            {
+                                var element = tupleElements[i];
+                                ComponentValueBox elementBox = element switch
+                                {
+                                    bool b => b,
+                                    sbyte s8 => s8,
+                                    byte u8 => u8,
+                                    short s16 => s16,
+                                    ushort u16 => u16,
+                                    int s32 => s32,
+                                    uint u32 => u32,
+                                    long s64 => s64,
+                                    ulong u64 => u64,
+                                    float f32 => f32,
+                                    double f64 => f64,
+                                    char c => c,
+                                    string s => s,
+                                    object[] nested => ComponentValueBox.FromTuple(nested),
+                                    _ => throw new NotSupportedException($"Unsupported tuple element type: {element?.GetType()}")
+                                };
+                                componentValues[i] = FromValueBox(store, elementBox);
+                            }
+                        }
+                        
+                        value.of.tuple = new ValTuple
+                        {
+                            size = (nuint)elementCount,
+                            data = componentValues
+                        };
+                    }
+                    break;
+
+                // TODO: Implement complex types (Record, Variant, Enum, Option, Result, Flags)
                 default:
                     throw new NotImplementedException($"Component value kind {box.Kind} is not yet implemented");
             }
@@ -245,6 +288,41 @@ namespace Wasmtime
                     // Return an empty int array for empty lists (default for s32 list)
                     return ComponentValueBox.FromList(Array.Empty<int>());
 
+                case ComponentValueKind.Tuple:
+                    if (value.of.tuple.size > 0 && value.of.tuple.data != null)
+                    {
+                        var tupleElements = new object[(int)value.of.tuple.size];
+                        
+                        for (int i = 0; i < (int)value.of.tuple.size; i++)
+                        {
+                            var elementBox = ToValueBox(store, value.of.tuple.data[i]);
+                            var elementValue = elementBox.Kind switch
+                            {
+                                ComponentValueKind.Bool => (object)elementBox.AsBool(),
+                                ComponentValueKind.S8 => elementBox.AsS8(),
+                                ComponentValueKind.U8 => elementBox.AsU8(),
+                                ComponentValueKind.S16 => elementBox.AsS16(),
+                                ComponentValueKind.U16 => elementBox.AsU16(),
+                                ComponentValueKind.S32 => elementBox.AsS32(),
+                                ComponentValueKind.U32 => elementBox.AsU32(),
+                                ComponentValueKind.S64 => elementBox.AsS64(),
+                                ComponentValueKind.U64 => elementBox.AsU64(),
+                                ComponentValueKind.F32 => elementBox.AsF32(),
+                                ComponentValueKind.F64 => elementBox.AsF64(),
+                                ComponentValueKind.Char => elementBox.AsChar(),
+                                ComponentValueKind.String => elementBox.AsString(),
+                                ComponentValueKind.List => elementBox.ObjectValue, // Keep as array
+                                ComponentValueKind.Tuple => elementBox.AsTuple(), // Nested tuple
+                                _ => throw new NotSupportedException($"Unsupported tuple element kind: {elementBox.Kind}")
+                            };
+                            tupleElements[i] = elementValue!;
+                        }
+                        
+                        return ComponentValueBox.FromTuple(tupleElements);
+                    }
+                    // Return an empty tuple
+                    return ComponentValueBox.FromTuple(Array.Empty<object>());
+
                 // TODO: Implement complex types
                 default:
                     throw new NotImplementedException($"Component value kind {value.kind} is not yet implemented");
@@ -279,6 +357,21 @@ namespace Wasmtime
                 Marshal.FreeHGlobal((IntPtr)value->of.list.data);
                 value->of.list.data = null;
                 value->of.list.size = 0;
+            }
+
+            // Free allocated tuples
+            if (value->kind == ComponentValueKind.Tuple && value->of.tuple.data != null)
+            {
+                // First free any nested values in the tuple
+                for (nuint i = 0; i < value->of.tuple.size; i++)
+                {
+                    ReleaseValue(&value->of.tuple.data[i]);
+                }
+                
+                // Then free the tuple array itself
+                Marshal.FreeHGlobal((IntPtr)value->of.tuple.data);
+                value->of.tuple.data = null;
+                value->of.tuple.size = 0;
             }
 
             // TODO: Free complex types (records, etc.)

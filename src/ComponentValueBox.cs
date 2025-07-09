@@ -168,6 +168,15 @@ namespace Wasmtime
         }
 
         /// <summary>
+        /// "Unbox" a tuple value.
+        /// </summary>
+        public object[]? AsTuple()
+        {
+            ThrowIfNotOfCorrectKind(ComponentValueKind.Tuple);
+            return ObjectValue as object[];
+        }
+
+        /// <summary>
         /// "Unbox" as a generic type.
         /// </summary>
         public T? As<T>() where T : class
@@ -293,6 +302,14 @@ namespace Wasmtime
         public static ComponentValueBox FromList<T>(T[] values)
         {
             return new ComponentValueBox(ComponentValueKind.List, values);
+        }
+
+        /// <summary>
+        /// Create a ComponentValueBox from a tuple of values
+        /// </summary>
+        public static ComponentValueBox FromTuple(object[] values)
+        {
+            return new ComponentValueBox(ComponentValueKind.Tuple, values);
         }
 
         /// <summary>

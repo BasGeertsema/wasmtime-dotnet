@@ -146,6 +146,9 @@ internal unsafe struct ComponentValueUnion
     public ValRecord record;
     
     [FieldOffset(0)]
+    public ValTuple tuple;
+    
+    [FieldOffset(0)]
     public ValVariant variant;
     
     [FieldOffset(0)]

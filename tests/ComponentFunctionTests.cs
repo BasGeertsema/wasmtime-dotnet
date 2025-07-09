@@ -205,6 +205,34 @@ namespace Wasmtime.Tests
         }
 
         [Fact]
+        public void ComponentValueBoxSupportsTupleOperations()
+        {
+            // Test creating and accessing tuples
+            var tuple = new object[] { 42, "hello", 3.14f };
+            var tupleBox = ComponentValueBox.FromTuple(tuple);
+            tupleBox.Kind.Should().Be(ComponentValueKind.Tuple);
+            var resultTuple = tupleBox.AsTuple();
+            resultTuple.Should().NotBeNull();
+            resultTuple.Should().Equal(tuple);
+            
+            // Test empty tuple
+            var emptyTuple = Array.Empty<object>();
+            var emptyBox = ComponentValueBox.FromTuple(emptyTuple);
+            emptyBox.Kind.Should().Be(ComponentValueKind.Tuple);
+            emptyBox.AsTuple().Should().BeEmpty();
+            
+            // Test nested tuple
+            var nestedTuple = new object[] { 1, new object[] { "nested", true }, 3.0 };
+            var nestedBox = ComponentValueBox.FromTuple(nestedTuple);
+            var result = nestedBox.AsTuple();
+            result.Should().NotBeNull();
+            result![0].Should().Be(1);
+            result[1].Should().BeOfType<object[]>();
+            ((object[])result[1]).Should().Equal(new object[] { "nested", true });
+            result[2].Should().Be(3.0);
+        }
+
+        [Fact]
         public void ItCanInvokeAddS8Function()
         {
             var addFunc = GetComponentFunction("add-s8");
@@ -369,6 +397,49 @@ namespace Wasmtime.Tests
             resultList = ((ComponentValueBox)result!).AsList<int>();
             resultList.Should().NotBeNull();
             resultList.Should().Equal(new int[] { 50, 40, -30, -20, -10 });
+        }
+
+        [Fact]
+        public void ItCanInvokeEchoTupleFunction()
+        {
+            var echoFunc = GetComponentFunction("echo-tuple2");
+            
+            // Create a tuple of (f32, s32) values
+            var tupleValue = ComponentValueBox.FromTuple(new object[] { 3.14f, 42 });
+            var args = new ComponentValueBox[] { tupleValue };
+            
+            var result = echoFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            
+            var resultTuple = ((ComponentValueBox)result!).AsTuple();
+            resultTuple.Should().NotBeNull();
+            resultTuple.Should().HaveCount(2);
+            resultTuple![0].Should().BeOfType<float>().Which.Should().Be(3.14f);
+            resultTuple[1].Should().BeOfType<int>().Which.Should().Be(42);
+            
+            // Test with negative values
+            tupleValue = ComponentValueBox.FromTuple(new object[] { -2.5f, -100 });
+            args = new ComponentValueBox[] { tupleValue };
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultTuple = ((ComponentValueBox)result!).AsTuple();
+            resultTuple.Should().NotBeNull();
+            resultTuple.Should().HaveCount(2);
+            resultTuple![0].Should().BeOfType<float>().Which.Should().Be(-2.5f);
+            resultTuple[1].Should().BeOfType<int>().Which.Should().Be(-100);
+            
+            // Test with zero values
+            tupleValue = ComponentValueBox.FromTuple(new object[] { 0.0f, 0 });
+            args = new ComponentValueBox[] { tupleValue };
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultTuple = ((ComponentValueBox)result!).AsTuple();
+            resultTuple.Should().NotBeNull();
+            resultTuple.Should().HaveCount(2);
+            resultTuple![0].Should().BeOfType<float>().Which.Should().Be(0.0f);
+            resultTuple[1].Should().BeOfType<int>().Which.Should().Be(0);
         }
 
         [Fact(Skip = "Causes crash when using interface export as lookup context")]
