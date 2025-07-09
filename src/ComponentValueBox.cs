@@ -195,6 +195,15 @@ namespace Wasmtime
         }
 
         /// <summary>
+        /// "Unbox" an enum value.
+        /// </summary>
+        public string? AsEnum()
+        {
+            ThrowIfNotOfCorrectKind(ComponentValueKind.Enum);
+            return ObjectValue as string;
+        }
+
+        /// <summary>
         /// "Unbox" as a generic type.
         /// </summary>
         public T? As<T>() where T : class
@@ -344,6 +353,14 @@ namespace Wasmtime
         public static ComponentValueBox FromVariant(string discriminant, ComponentValueBox? payload)
         {
             return new ComponentValueBox(ComponentValueKind.Variant, (discriminant, payload));
+        }
+
+        /// <summary>
+        /// Create a ComponentValueBox from an enum value
+        /// </summary>
+        public static ComponentValueBox FromEnum(string value)
+        {
+            return new ComponentValueBox(ComponentValueKind.Enum, value);
         }
 
         /// <summary>

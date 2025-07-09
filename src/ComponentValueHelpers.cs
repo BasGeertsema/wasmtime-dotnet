@@ -139,6 +139,7 @@ namespace Wasmtime
                                 var element = tupleElements[i];
                                 ComponentValueBox elementBox = element switch
                                 {
+                                    ComponentValueBox boxed => boxed,
                                     bool b => b,
                                     sbyte s8 => s8,
                                     byte u8 => u8,
@@ -233,6 +234,22 @@ namespace Wasmtime
                                 data = (byte*)discriminantPtr
                             },
                             value = payloadValue
+                        };
+                    }
+                    break;
+
+                case ComponentValueKind.Enum:
+                    if (box.ObjectValue is string enumValue)
+                    {
+                        // Allocate and copy enum name
+                        var enumBytes = Encoding.UTF8.GetBytes(enumValue);
+                        var enumPtr = Marshal.AllocHGlobal(enumBytes.Length);
+                        Marshal.Copy(enumBytes, 0, enumPtr, enumBytes.Length);
+                        
+                        value.of.enumeration = new WasmName
+                        {
+                            size = (nuint)enumBytes.Length,
+                            data = (byte*)enumPtr
                         };
                     }
                     break;
@@ -383,6 +400,7 @@ namespace Wasmtime
                                 ComponentValueKind.Tuple => elementBox.AsTuple(), // Nested tuple
                                 ComponentValueKind.Record => elementBox.AsRecord(), // Nested record
                                 ComponentValueKind.Variant => elementBox.AsVariant(), // Nested variant
+                                ComponentValueKind.Enum => elementBox.AsEnum(), // Nested enum
                                 _ => throw new NotSupportedException($"Unsupported tuple element kind: {elementBox.Kind}")
                             };
                             tupleElements[i] = elementValue!;
@@ -440,6 +458,18 @@ namespace Wasmtime
                     }
                     
                     return ComponentValueBox.FromVariant(discriminantName, payloadValue);
+
+                case ComponentValueKind.Enum:
+                    // Convert enum name from WasmName
+                    string enumName = string.Empty;
+                    if (value.of.enumeration.data != null && value.of.enumeration.size > 0)
+                    {
+                        byte[] enumBytes = new byte[value.of.enumeration.size];
+                        Marshal.Copy((IntPtr)value.of.enumeration.data, enumBytes, 0, (int)value.of.enumeration.size);
+                        enumName = Encoding.UTF8.GetString(enumBytes);
+                    }
+                    
+                    return ComponentValueBox.FromEnum(enumName);
 
                 // TODO: Implement complex types
                 default:
@@ -537,7 +567,15 @@ namespace Wasmtime
                 }
             }
 
-            // TODO: Free other complex types (enum, option, result, flags)
+            // Free allocated enums
+            if (value->kind == ComponentValueKind.Enum && value->of.enumeration.data != null)
+            {
+                Marshal.FreeHGlobal((IntPtr)value->of.enumeration.data);
+                value->of.enumeration.data = null;
+                value->of.enumeration.size = 0;
+            }
+
+            // TODO: Free other complex types (option, result, flags)
         }
 
         /// <summary>

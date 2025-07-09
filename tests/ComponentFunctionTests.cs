@@ -590,6 +590,45 @@ namespace Wasmtime.Tests
             resultVariant.Value.Item2!.Value.AsString().Should().Be("");
         }
 
+        [Fact]
+        public void ItCanInvokeEchoEnumFunction()
+        {
+            var echoFunc = GetComponentFunction("echo-enum");
+            
+            // Test case 1: red
+            var redEnum = ComponentValueBox.FromEnum("red");
+            var args = new ComponentValueBox[] { redEnum };
+            
+            var result = echoFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            
+            var resultEnum = ((ComponentValueBox)result!).AsEnum();
+            resultEnum.Should().NotBeNull();
+            resultEnum.Should().Be("red");
+            
+            // Test case 2: green
+            var greenEnum = ComponentValueBox.FromEnum("green");
+            args = new ComponentValueBox[] { greenEnum };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultEnum = ((ComponentValueBox)result!).AsEnum();
+            resultEnum.Should().NotBeNull();
+            resultEnum.Should().Be("green");
+            
+            // Test case 3: blue
+            var blueEnum = ComponentValueBox.FromEnum("blue");
+            args = new ComponentValueBox[] { blueEnum };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultEnum = ((ComponentValueBox)result!).AsEnum();
+            resultEnum.Should().NotBeNull();
+            resultEnum.Should().Be("blue");
+        }
+
         [Fact(Skip = "Causes crash when using interface export as lookup context")]
         public void DemonstratesComponentExportTraversal()
         {
