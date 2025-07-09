@@ -159,6 +159,15 @@ namespace Wasmtime
         }
 
         /// <summary>
+        /// "Unbox" a list value.
+        /// </summary>
+        public T[]? AsList<T>()
+        {
+            ThrowIfNotOfCorrectKind(ComponentValueKind.List);
+            return ObjectValue as T[];
+        }
+
+        /// <summary>
         /// "Unbox" as a generic type.
         /// </summary>
         public T? As<T>() where T : class
@@ -276,6 +285,14 @@ namespace Wasmtime
         public static implicit operator ComponentValueBox(string value)
         {
             return new ComponentValueBox(ComponentValueKind.String, value);
+        }
+
+        /// <summary>
+        /// Create a ComponentValueBox from a list of values
+        /// </summary>
+        public static ComponentValueBox FromList<T>(T[] values)
+        {
+            return new ComponentValueBox(ComponentValueKind.List, values);
         }
 
         /// <summary>

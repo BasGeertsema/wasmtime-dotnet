@@ -180,6 +180,31 @@ namespace Wasmtime.Tests
         }
 
         [Fact]
+        public void ComponentValueBoxSupportsListOperations()
+        {
+            // Test creating and accessing lists
+            var intList = new int[] { 1, 2, 3 };
+            var listBox = ComponentValueBox.FromList(intList);
+            listBox.Kind.Should().Be(ComponentValueKind.List);
+            listBox.AsList<int>().Should().Equal(intList);
+            
+            // Test empty list
+            var emptyList = Array.Empty<int>();
+            var emptyBox = ComponentValueBox.FromList(emptyList);
+            emptyBox.Kind.Should().Be(ComponentValueKind.List);
+            emptyBox.AsList<int>().Should().BeEmpty();
+            
+            // Test other types
+            var floatList = new float[] { 1.1f, 2.2f, 3.3f };
+            var floatBox = ComponentValueBox.FromList(floatList);
+            floatBox.AsList<float>().Should().Equal(floatList);
+            
+            var stringList = new string[] { "hello", "world" };
+            var stringBox = ComponentValueBox.FromList(stringList);
+            stringBox.AsList<string>().Should().Equal(stringList);
+        }
+
+        [Fact]
         public void ItCanInvokeAddS8Function()
         {
             var addFunc = GetComponentFunction("add-s8");
@@ -303,6 +328,47 @@ namespace Wasmtime.Tests
             var result = addFunc!.Invoke(args);
             result.Should().NotBeNull();
             ((ComponentValueBox)result!).AsF64().Should().BeApproximately(5.859874482048838, 0.0000000001);
+        }
+
+        [Fact]
+        public void ItCanInvokeReverseListS32Function()
+        {
+            var reverseFunc = GetComponentFunction("reverse-list-s32");
+            
+            // Create a list of s32 values
+            var listValues = new int[] { 1, 2, 3, 4, 5 };
+            var args = new ComponentValueBox[] { ComponentValueBox.FromList(listValues) };
+            
+            var result = reverseFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            
+            var resultList = ((ComponentValueBox)result!).AsList<int>();
+            resultList.Should().NotBeNull();
+            resultList.Should().Equal(new int[] { 5, 4, 3, 2, 1 });
+            
+            // Test with empty list
+            args = new ComponentValueBox[] { ComponentValueBox.FromList(Array.Empty<int>()) };
+            result = reverseFunc.Invoke(args);
+            result.Should().NotBeNull();
+            resultList = ((ComponentValueBox)result!).AsList<int>();
+            resultList.Should().NotBeNull();
+            resultList.Should().BeEmpty();
+            
+            // Test with single element
+            args = new ComponentValueBox[] { ComponentValueBox.FromList(new int[] { 42 }) };
+            result = reverseFunc.Invoke(args);
+            result.Should().NotBeNull();
+            resultList = ((ComponentValueBox)result!).AsList<int>();
+            resultList.Should().NotBeNull();
+            resultList.Should().Equal(new int[] { 42 });
+            
+            // Test with negative numbers
+            args = new ComponentValueBox[] { ComponentValueBox.FromList(new int[] { -10, -20, -30, 40, 50 }) };
+            result = reverseFunc.Invoke(args);
+            result.Should().NotBeNull();
+            resultList = ((ComponentValueBox)result!).AsList<int>();
+            resultList.Should().NotBeNull();
+            resultList.Should().Equal(new int[] { 50, 40, -30, -20, -10 });
         }
 
         [Fact(Skip = "Causes crash when using interface export as lookup context")]

@@ -84,7 +84,49 @@ namespace Wasmtime
                     }
                     break;
 
-                // TODO: Implement complex types (List, Record, Tuple, Variant, Enum, Option, Result, Flags)
+                case ComponentValueKind.List:
+                    if (box.ObjectValue is Array array)
+                    {
+                        var elementCount = array.Length;
+                        ComponentValue* componentValues = null;
+                        
+                        if (elementCount > 0)
+                        {
+                            componentValues = (ComponentValue*)Marshal.AllocHGlobal(elementCount * sizeof(ComponentValue));
+                            
+                            for (int i = 0; i < elementCount; i++)
+                            {
+                                var element = array.GetValue(i);
+                                ComponentValueBox elementBox = element switch
+                                {
+                                    bool b => b,
+                                    sbyte s8 => s8,
+                                    byte u8 => u8,
+                                    short s16 => s16,
+                                    ushort u16 => u16,
+                                    int s32 => s32,
+                                    uint u32 => u32,
+                                    long s64 => s64,
+                                    ulong u64 => u64,
+                                    float f32 => f32,
+                                    double f64 => f64,
+                                    char c => c,
+                                    string s => s,
+                                    _ => throw new NotSupportedException($"Unsupported list element type: {element?.GetType()}")
+                                };
+                                componentValues[i] = FromValueBox(store, elementBox);
+                            }
+                        }
+                        
+                        value.of.list = new ValList
+                        {
+                            size = (nuint)elementCount,
+                            data = componentValues
+                        };
+                    }
+                    break;
+
+                // TODO: Implement complex types (Record, Tuple, Variant, Enum, Option, Result, Flags)
                 default:
                     throw new NotImplementedException($"Component value kind {box.Kind} is not yet implemented");
             }
@@ -145,6 +187,64 @@ namespace Wasmtime
                     }
                     return string.Empty;
 
+                case ComponentValueKind.List:
+                    if (value.of.list.size > 0 && value.of.list.data != null)
+                    {
+                        // First pass: determine the element type from the first element
+                        var firstElement = value.of.list.data[0];
+                        var elementType = firstElement.kind switch
+                        {
+                            ComponentValueKind.Bool => typeof(bool),
+                            ComponentValueKind.S8 => typeof(sbyte),
+                            ComponentValueKind.U8 => typeof(byte),
+                            ComponentValueKind.S16 => typeof(short),
+                            ComponentValueKind.U16 => typeof(ushort),
+                            ComponentValueKind.S32 => typeof(int),
+                            ComponentValueKind.U32 => typeof(uint),
+                            ComponentValueKind.S64 => typeof(long),
+                            ComponentValueKind.U64 => typeof(ulong),
+                            ComponentValueKind.F32 => typeof(float),
+                            ComponentValueKind.F64 => typeof(double),
+                            ComponentValueKind.Char => typeof(char),
+                            ComponentValueKind.String => typeof(string),
+                            _ => throw new NotSupportedException($"Unsupported list element kind: {firstElement.kind}")
+                        };
+
+                        // Create the typed array
+                        var array = Array.CreateInstance(elementType, (int)value.of.list.size);
+                        
+                        // Convert each element
+                        for (int i = 0; i < (int)value.of.list.size; i++)
+                        {
+                            var elementBox = ToValueBox(store, value.of.list.data[i]);
+                            var elementValue = elementBox.Kind switch
+                            {
+                                ComponentValueKind.Bool => (object)elementBox.AsBool(),
+                                ComponentValueKind.S8 => elementBox.AsS8(),
+                                ComponentValueKind.U8 => elementBox.AsU8(),
+                                ComponentValueKind.S16 => elementBox.AsS16(),
+                                ComponentValueKind.U16 => elementBox.AsU16(),
+                                ComponentValueKind.S32 => elementBox.AsS32(),
+                                ComponentValueKind.U32 => elementBox.AsU32(),
+                                ComponentValueKind.S64 => elementBox.AsS64(),
+                                ComponentValueKind.U64 => elementBox.AsU64(),
+                                ComponentValueKind.F32 => elementBox.AsF32(),
+                                ComponentValueKind.F64 => elementBox.AsF64(),
+                                ComponentValueKind.Char => elementBox.AsChar(),
+                                ComponentValueKind.String => elementBox.AsString(),
+                                _ => throw new NotSupportedException($"Unsupported list element kind: {elementBox.Kind}")
+                            };
+                            array.SetValue(elementValue, i);
+                        }
+                        
+                        // Use reflection to call the generic FromList method with the correct type
+                        var fromListMethod = typeof(ComponentValueBox).GetMethod(nameof(ComponentValueBox.FromList))!;
+                        var genericMethod = fromListMethod.MakeGenericMethod(elementType);
+                        return (ComponentValueBox)genericMethod.Invoke(null, new object[] { array })!;
+                    }
+                    // Return an empty int array for empty lists (default for s32 list)
+                    return ComponentValueBox.FromList(Array.Empty<int>());
+
                 // TODO: Implement complex types
                 default:
                     throw new NotImplementedException($"Component value kind {value.kind} is not yet implemented");
@@ -166,7 +266,22 @@ namespace Wasmtime
                 value->of.@string.size = 0;
             }
 
-            // TODO: Free complex types (lists, records, etc.)
+            // Free allocated lists
+            if (value->kind == ComponentValueKind.List && value->of.list.data != null)
+            {
+                // First free any nested values in the list
+                for (nuint i = 0; i < value->of.list.size; i++)
+                {
+                    ReleaseValue(&value->of.list.data[i]);
+                }
+                
+                // Then free the list array itself
+                Marshal.FreeHGlobal((IntPtr)value->of.list.data);
+                value->of.list.data = null;
+                value->of.list.size = 0;
+            }
+
+            // TODO: Free complex types (records, etc.)
         }
 
         /// <summary>

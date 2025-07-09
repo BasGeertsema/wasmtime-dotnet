@@ -13,6 +13,7 @@ interface business-rules {
     add-u64: func(x :u64, y :u64) -> u64;
     add-f32: func(x :f32, y :f32) -> f32;
     add-f64: func(x :f64, y :f64) -> f64;
+    reverse-list-s32: func(x :list<s32>) -> list<s32>;
 }
 
 world guest {
