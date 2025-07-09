@@ -47,6 +47,43 @@ namespace Wasmtime
                 }
             }
         }
+
+        /// <summary>
+        /// Gets an exported function by name from this component instance.
+        /// </summary>
+        /// <param name="name">The name of the function to get</param>
+        /// <param name="store">The store this instance belongs to</param>
+        /// <param name="lookupInstance">Optional instance to look up in</param>
+        /// <returns>The component function if found, otherwise null</returns>
+        public ComponentFunction? GetFunction(string name, Store store, ComponentExportIndexHandle? lookupInstance = null)
+        {
+            if (!TryGetExportIndex(name, store, lookupInstance, out var exportIndex))
+            {
+                return null;
+            }
+
+            using (exportIndex)
+            {
+                unsafe
+                {
+                    var func = new ComponentFunction.ComponentFunc();
+                    bool found = Native.wasmtime_component_instance_get_func(
+                        _instance,
+                        store.Context.handle,
+                        exportIndex.DangerousGetHandle(),
+                        &func);
+
+                    GC.KeepAlive(store);
+
+                    if (!found)
+                    {
+                        return null;
+                    }
+
+                    return new ComponentFunction(store, func);
+                }
+            }
+        }
         
         internal ComponentInstance(Store store, ExternComponentInstance instance)
         {
@@ -63,6 +100,10 @@ namespace Wasmtime
         {
             [DllImport(Engine.LibraryName)]
             public static extern unsafe IntPtr wasmtime_component_instance_get_export_index(in ExternComponentInstance instance, IntPtr context, IntPtr instanceExportIndex, byte* name, nuint nameLength);
+
+            [DllImport(Engine.LibraryName)]
+            [return: MarshalAs(UnmanagedType.I1)]
+            public static extern unsafe bool wasmtime_component_instance_get_func(in ExternComponentInstance instance, IntPtr context, IntPtr exportIndex, ComponentFunction.ComponentFunc* funcOut);
         }
 
         private readonly Store _store;

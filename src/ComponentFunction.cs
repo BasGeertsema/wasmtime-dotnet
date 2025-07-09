@@ -182,7 +182,7 @@ namespace Wasmtime
         /// Native component function representation matching wasmtime_component_func_t
         /// </summary>
         [StructLayout(LayoutKind.Sequential)]
-        internal struct ComponentFunc
+        public struct ComponentFunc
         {
             public ulong store_id;
             public uint __private1;
