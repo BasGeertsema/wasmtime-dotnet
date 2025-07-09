@@ -629,6 +629,94 @@ namespace Wasmtime.Tests
             resultEnum.Should().Be("blue");
         }
 
+        [Fact]
+        public void ItCanInvokeEchoOptionFunction()
+        {
+            var echoFunc = GetComponentFunction("echo-option");
+            
+            // Test case 1: Some(person)
+            var personFields = new (string, ComponentValueBox)[]
+            {
+                ("name", "Alice"),
+                ("age", (byte)30)
+            };
+            var personRecord = ComponentValueBox.FromRecord(personFields);
+            var someOption = ComponentValueBox.FromOption(personRecord);
+            var args = new ComponentValueBox[] { someOption };
+            
+            var result = echoFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            
+            var resultOption = ((ComponentValueBox)result!).AsOption();
+            resultOption.Should().NotBeNull(); // Some case returns a non-null ComponentValueBox
+            
+            var resultPerson = ((ComponentValueBox)resultOption!).AsRecord();
+            resultPerson.Should().NotBeNull();
+            resultPerson.Should().HaveCount(2);
+            resultPerson![0].Item1.Should().Be("name");
+            resultPerson[0].Item2.AsString().Should().Be("Alice");
+            resultPerson[1].Item1.Should().Be("age");
+            resultPerson[1].Item2.AsU8().Should().Be(30);
+            
+            // Test case 2: None
+            var noneOption = ComponentValueBox.FromOption(null);
+            args = new ComponentValueBox[] { noneOption };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultOption = ((ComponentValueBox)result!).AsOption();
+            resultOption.Should().BeNull(); // None is represented as null
+            
+            // Test case 3: Some(person) with different values
+            personFields = new (string, ComponentValueBox)[]
+            {
+                ("name", "Bob"),
+                ("age", (byte)25)
+            };
+            personRecord = ComponentValueBox.FromRecord(personFields);
+            someOption = ComponentValueBox.FromOption(personRecord);
+            args = new ComponentValueBox[] { someOption };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultOption = ((ComponentValueBox)result!).AsOption();
+            resultOption.Should().NotBeNull(); // Some case returns a non-null ComponentValueBox
+            
+            resultPerson = ((ComponentValueBox)resultOption!).AsRecord();
+            resultPerson.Should().NotBeNull();
+            resultPerson.Should().HaveCount(2);
+            resultPerson![0].Item1.Should().Be("name");
+            resultPerson[0].Item2.AsString().Should().Be("Bob");
+            resultPerson[1].Item1.Should().Be("age");
+            resultPerson[1].Item2.AsU8().Should().Be(25);
+            
+            // Test case 4: Some(person) with empty name and zero age
+            personFields = new (string, ComponentValueBox)[]
+            {
+                ("name", ""),
+                ("age", (byte)0)
+            };
+            personRecord = ComponentValueBox.FromRecord(personFields);
+            someOption = ComponentValueBox.FromOption(personRecord);
+            args = new ComponentValueBox[] { someOption };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultOption = ((ComponentValueBox)result!).AsOption();
+            resultOption.Should().NotBeNull(); // Some case returns a non-null ComponentValueBox
+            
+            resultPerson = ((ComponentValueBox)resultOption!).AsRecord();
+            resultPerson.Should().NotBeNull();
+            resultPerson.Should().HaveCount(2);
+            resultPerson![0].Item1.Should().Be("name");
+            resultPerson[0].Item2.AsString().Should().Be("");
+            resultPerson[1].Item1.Should().Be("age");
+            resultPerson[1].Item2.AsU8().Should().Be(0);
+        }
+
         [Fact(Skip = "Causes crash when using interface export as lookup context")]
         public void DemonstratesComponentExportTraversal()
         {

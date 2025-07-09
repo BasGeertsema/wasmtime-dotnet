@@ -254,6 +254,21 @@ namespace Wasmtime
                     }
                     break;
 
+                case ComponentValueKind.Option:
+                    if (box.ObjectValue is ComponentValueBox optionValue)
+                    {
+                        // Allocate space for the wrapped value
+                        var wrappedValue = (ComponentValue*)Marshal.AllocHGlobal(sizeof(ComponentValue));
+                        *wrappedValue = FromValueBox(store, optionValue);
+                        value.of.option = wrappedValue;
+                    }
+                    else
+                    {
+                        // None case - null pointer
+                        value.of.option = null;
+                    }
+                    break;
+
                 // TODO: Implement complex types (Record, Variant, Enum, Option, Result, Flags)
                 default:
                     throw new NotImplementedException($"Component value kind {box.Kind} is not yet implemented");
@@ -401,6 +416,7 @@ namespace Wasmtime
                                 ComponentValueKind.Record => elementBox.AsRecord(), // Nested record
                                 ComponentValueKind.Variant => elementBox.AsVariant(), // Nested variant
                                 ComponentValueKind.Enum => elementBox.AsEnum(), // Nested enum
+                                ComponentValueKind.Option => elementBox.AsOption(), // Nested option
                                 _ => throw new NotSupportedException($"Unsupported tuple element kind: {elementBox.Kind}")
                             };
                             tupleElements[i] = elementValue!;
@@ -470,6 +486,20 @@ namespace Wasmtime
                     }
                     
                     return ComponentValueBox.FromEnum(enumName);
+
+                case ComponentValueKind.Option:
+                    // Convert option value
+                    if (value.of.option != null)
+                    {
+                        // Some case - convert the wrapped value
+                        var wrappedValue = ToValueBox(store, *value.of.option);
+                        return ComponentValueBox.FromOption(wrappedValue);
+                    }
+                    else
+                    {
+                        // None case
+                        return ComponentValueBox.FromOption(null);
+                    }
 
                 // TODO: Implement complex types
                 default:
@@ -575,7 +605,16 @@ namespace Wasmtime
                 value->of.enumeration.size = 0;
             }
 
-            // TODO: Free other complex types (option, result, flags)
+            // Free allocated options
+            if (value->kind == ComponentValueKind.Option && value->of.option != null)
+            {
+                // Free the wrapped value
+                ReleaseValue(value->of.option);
+                Marshal.FreeHGlobal((IntPtr)value->of.option);
+                value->of.option = null;
+            }
+
+            // TODO: Free other complex types (result, flags)
         }
 
         /// <summary>

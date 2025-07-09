@@ -204,6 +204,15 @@ namespace Wasmtime
         }
 
         /// <summary>
+        /// "Unbox" an option value.
+        /// </summary>
+        public ComponentValueBox? AsOption()
+        {
+            ThrowIfNotOfCorrectKind(ComponentValueKind.Option);
+            return ObjectValue as ComponentValueBox?;
+        }
+
+        /// <summary>
         /// "Unbox" as a generic type.
         /// </summary>
         public T? As<T>() where T : class
@@ -361,6 +370,14 @@ namespace Wasmtime
         public static ComponentValueBox FromEnum(string value)
         {
             return new ComponentValueBox(ComponentValueKind.Enum, value);
+        }
+
+        /// <summary>
+        /// Create a ComponentValueBox from an option value
+        /// </summary>
+        public static ComponentValueBox FromOption(ComponentValueBox? value)
+        {
+            return new ComponentValueBox(ComponentValueKind.Option, value);
         }
 
         /// <summary>
