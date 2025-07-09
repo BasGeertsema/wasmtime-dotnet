@@ -32,12 +32,19 @@ internal enum ComponentValueKind : byte
 /// Represents a variant type.
 /// </summary>
 [StructLayout(LayoutKind.Sequential)]
+internal struct WasmName
+{
+    public nuint size;
+    public unsafe byte* data;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 internal struct ValVariant
 {
     /// <summary>
     /// The discriminant of the variant.
     /// </summary>
-    public unsafe byte* discriminant;
+    public WasmName discriminant;
     
     /// <summary>
     /// The payload of the variant
@@ -87,8 +94,7 @@ internal struct ValTuple
 internal struct ValFlags
 {
     public nuint size;
-    // wasm_name_t
-    public unsafe byte* data;
+    public unsafe WasmName* data;
 };
 
 [StructLayout(LayoutKind.Explicit)]
@@ -131,7 +137,7 @@ internal unsafe struct ComponentValueUnion
     public uint character;
     
     [FieldOffset(0)]
-    public byte* @string;
+    public WasmName @string;
     
     [FieldOffset(0)]
     public ValList list;    
@@ -143,7 +149,7 @@ internal unsafe struct ComponentValueUnion
     public ValVariant variant;
     
     [FieldOffset(0)]
-    public byte*  enumeration;
+    public WasmName enumeration;
     
     [FieldOffset(0)]
     public ComponentValue* option;
@@ -158,7 +164,15 @@ internal unsafe struct ComponentValueUnion
 [StructLayout(LayoutKind.Sequential)]
 internal unsafe struct ComponentValue
 {
-    static ComponentValue() => System.Diagnostics.Debug.Assert(Marshal.SizeOf(typeof(ComponentValue)) == 24); // 1 byte kind + 7 bytes padding + 16 byte union
+    static ComponentValue()
+    {
+        var actualSize = Marshal.SizeOf(typeof(ComponentValue));
+        // ComponentValue should be 32 bytes on 64-bit platforms:
+        // - 1 byte for kind
+        // - 7 bytes padding (to align union to 8-byte boundary)
+        // - 24 bytes for union (includes WasmName which is 16 bytes: 8 for size_t + 8 for pointer)
+        System.Diagnostics.Debug.Assert(actualSize == 32, $"ComponentValue size mismatch: expected 32, got {actualSize}");
+    }
     
     public ComponentValueKind kind;
     public ComponentValueUnion of;
@@ -170,11 +184,11 @@ internal unsafe struct ValRecordEntry
     /// <summary>
     /// The name of this entry
     /// </summary>
-    public byte* name;
+    public WasmName name;
 
     /// <summary>
-    /// The valye of this entry
+    /// The value of this entry
     /// </summary>
-    private ComponentValue val;
+    public ComponentValue val;
 }
 

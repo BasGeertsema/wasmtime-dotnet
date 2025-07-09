@@ -54,7 +54,7 @@ namespace Wasmtime
         ///   Returns the value if the function returns a single value.
         ///   Returns an array of values if the function returns more than one value.
         /// </returns>
-        public unsafe object? Invoke(ReadOnlySpan<ComponentValueBox> arguments)
+        public unsafe ComponentValueBox? Invoke(ReadOnlySpan<ComponentValueBox> arguments)
         {
             if (IsNull)
             {

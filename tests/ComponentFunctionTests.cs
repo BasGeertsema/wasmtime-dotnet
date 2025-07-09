@@ -131,7 +131,7 @@ namespace Wasmtime.Tests
             stringBox.AsString().Should().Be("hello");
         }
 
-        [Fact]//(Skip = "Type mismatch issue needs investigation")]
+        [Fact]
         public void ItCanInvokeAddFunction()
         {
             // This test demonstrates how the add function would be invoked

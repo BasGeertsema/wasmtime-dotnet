@@ -74,10 +74,13 @@ namespace Wasmtime
                     if (box.ObjectValue is string str)
                     {
                         var bytes = Encoding.UTF8.GetBytes(str);
-                        var ptr = Marshal.AllocHGlobal(bytes.Length + 1);
+                        var ptr = Marshal.AllocHGlobal(bytes.Length);
                         Marshal.Copy(bytes, 0, ptr, bytes.Length);
-                        Marshal.WriteByte(ptr, bytes.Length, 0);
-                        value.of.@string = (byte*)ptr;
+                        value.of.@string = new WasmName
+                        {
+                            size = (nuint)bytes.Length,
+                            data = (byte*)ptr
+                        };
                     }
                     break;
 
@@ -133,16 +136,11 @@ namespace Wasmtime
                     return (char)value.of.character;
 
                 case ComponentValueKind.String:
-                    if (value.of.@string != null)
+                    if (value.of.@string.data != null && value.of.@string.size > 0)
                     {
-                        // Count bytes until null terminator
-                        int length = 0;
-                        byte* ptr = value.of.@string;
-                        while (ptr[length] != 0) length++;
-                        
-                        // Convert to string
-                        byte[] bytes = new byte[length];
-                        Marshal.Copy((IntPtr)value.of.@string, bytes, 0, length);
+                        // Convert to string using the size from wasm_name_t
+                        byte[] bytes = new byte[value.of.@string.size];
+                        Marshal.Copy((IntPtr)value.of.@string.data, bytes, 0, (int)value.of.@string.size);
                         return Encoding.UTF8.GetString(bytes);
                     }
                     return string.Empty;
@@ -161,10 +159,11 @@ namespace Wasmtime
             if (value == null) return;
 
             // Free allocated strings
-            if (value->kind == ComponentValueKind.String && value->of.@string != null)
+            if (value->kind == ComponentValueKind.String && value->of.@string.data != null)
             {
-                Marshal.FreeHGlobal((IntPtr)value->of.@string);
-                value->of.@string = null;
+                Marshal.FreeHGlobal((IntPtr)value->of.@string.data);
+                value->of.@string.data = null;
+                value->of.@string.size = 0;
             }
 
             // TODO: Free complex types (lists, records, etc.)
