@@ -14,11 +14,9 @@ namespace Wasmtime
         /// </summary>
         public static unsafe ComponentValue FromValueBox(Store store, ComponentValueBox box)
         {
-            var value = new ComponentValue
-            {
-                kind = box.Kind,
-                of = new ComponentValueUnion()
-            };
+            // Initialize the entire structure to zero first
+            var value = default(ComponentValue);
+            value.kind = box.Kind;
 
             switch (box.Kind)
             {
@@ -347,13 +345,14 @@ namespace Wasmtime
             // Free allocated lists
             if (value->kind == ComponentValueKind.List && value->of.list.data != null)
             {
-                // First free any nested values in the list
+                // First free any nested values in the list (only if size > 0)
                 for (nuint i = 0; i < value->of.list.size; i++)
                 {
                     ReleaseValue(&value->of.list.data[i]);
                 }
                 
                 // Then free the list array itself
+                // Note: We always allocate memory even for empty lists, so always free it
                 Marshal.FreeHGlobal((IntPtr)value->of.list.data);
                 value->of.list.data = null;
                 value->of.list.size = 0;

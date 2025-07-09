@@ -118,34 +118,29 @@ namespace Wasmtime
                     }
                 }
 
-                try
+                // Convert the single result back to ComponentValueBox first
+                ComponentValueBox? result = null;
+                if (resultCount == 1)
                 {
-                    // Call post-return as required by the component model
-                    fixed (ComponentFunc* funcPtr = &func)
-                    {
-                        var error = Native.wasmtime_component_func_post_return(funcPtr, store.Context.handle);
-                        if (error != IntPtr.Zero)
-                        {
-                            throw WasmtimeException.FromOwnedError(error);
-                        }
-                    }
+                    result = ComponentValueHelpers.ToValueBox(store, nativeResults[0]);
+                }
 
-                    // Convert the single result back to ComponentValueBox
-                    if (resultCount == 1)
-                    {
-                        return ComponentValueHelpers.ToValueBox(store, nativeResults[0]);
-                    }
-                    
-                    return null;
-                }
-                finally
+                // Call post-return as required by the component model
+                // This must be called BEFORE releasing any values
+                fixed (ComponentFunc* funcPtr = &func)
                 {
-                    // Clean up result values
-                    for (int i = 0; i < resultCount; i++)
+                    var error = Native.wasmtime_component_func_post_return(funcPtr, store.Context.handle);
+                    if (error != IntPtr.Zero)
                     {
-                        ComponentValueHelpers.ReleaseValue(&nativeResults[i]);
+                        throw WasmtimeException.FromOwnedError(error);
                     }
                 }
+                
+                // Note: We should NOT manually release result values here
+                // The wasmtime_component_func_post_return call handles cleanup
+                // of result values according to the component model
+                
+                return result;
             }
             finally
             {
