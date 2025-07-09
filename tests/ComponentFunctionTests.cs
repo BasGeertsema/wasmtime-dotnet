@@ -132,10 +132,9 @@ namespace Wasmtime.Tests
         }
 
         [Fact]
-        public void ItCanInvokeAddFunction()
+        public void ItCanInvokeAddS8Function()
         {
-            // This test demonstrates how the add function would be invoked
-            // once full export traversal support is implemented
+            // Test the add-s8 function
             
             using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("component.wasm");
             stream.Should().NotBeNull();
@@ -175,49 +174,513 @@ namespace Wasmtime.Tests
             using (businessRulesExport)
             {
                 // First check if we can find the export index
-                Console.WriteLine("First, trying TryGetExportIndex for 'add'...");
-                var foundExport = instance.TryGetExportIndex("add-s32", store, businessRulesExport, out var addExportIndex);
-                Console.WriteLine($"TryGetExportIndex returned: {foundExport}");
+                var foundExport = instance.TryGetExportIndex("add-s8", store, businessRulesExport, out var addExportIndex);
+                foundExport.Should().BeTrue("should find add-s8 function");
                 
-                if (foundExport)
+                using (addExportIndex)
                 {
-                    using (addExportIndex)
-                    {
-                        // Now we have the export index for the function
-                        Console.WriteLine("Found the 'add' function export index.");
-                        
-                        // Use the extension method to get the function from the export index
-                        addFunc = instance.GetFunctionFromExportIndex(store, addExportIndex);
-                        Console.WriteLine($"GetFunctionFromExportIndex returned: {addFunc != null}");
-                        
-                        addFunc.Should().NotBeNull("should be able to get function from export index");
-                    }
-                }
-                else
-                {
-                    throw new Xunit.Sdk.XunitException("Could not find 'add' export within interface");
+                    addFunc = instance.GetFunctionFromExportIndex(store, addExportIndex);
+                    addFunc.Should().NotBeNull("should be able to get function from export index");
                 }
             }
             
-            // Prepare arguments: two u32 values
-            var args = new ComponentValueBox[]
-            {
-                2,  // First argument: 2
-                3   // Second argument: 3
-            };
-            
-            Console.WriteLine($"Arg 0 kind: {args[0].Kind}, value: {args[0].AsS32()}");
-            Console.WriteLine($"Arg 1 kind: {args[1].Kind}, value: {args[1].AsS32()}");
-            
-            // Invoke the function
+            // Test with positive values
+            var args = new ComponentValueBox[] { (sbyte)10, (sbyte)20 };
             var result = addFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            ((ComponentValueBox)result!).AsS8().Should().Be(30);
             
-            // Verify the result
-            result.Should().NotBeNull("add function should return a value");
-            result.Should().BeOfType<ComponentValueBox>("result should be a ComponentValueBox");
+            // Test with negative values
+            args = new ComponentValueBox[] { (sbyte)-50, (sbyte)30 };
+            result = addFunc.Invoke(args);
+            ((ComponentValueBox)result!).AsS8().Should().Be(-20);
+        }
+
+        [Fact]
+        public void ItCanInvokeAddU8Function()
+        {
+            // Test the add-u8 function
             
-            var resultBox = (ComponentValueBox)result!;
-            resultBox.AsS32().Should().Be(5, "2 + 3 should equal 5");
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("component.wasm");
+            stream.Should().NotBeNull();
+
+            using var engine = new Engine();
+            using var component = Component.FromStream(engine, "component.wasm", stream!);
+            using var linker = new ComponentLinker(engine);
+            
+            var wasiConfig = new WasiConfiguration();
+            using var store = new Store(engine, wasiConfig);
+            
+            linker.AddWasiPreview2();
+            var instance = linker.Instantiate(store, component);
+            
+            // Get the business-rules interface
+            var found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules@0.1.0", store, null, out var businessRulesExport);
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules", store, null, out businessRulesExport);
+            }
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("business-rules", store, null, out businessRulesExport);
+            }
+            
+            found.Should().BeTrue("should find the business-rules interface export");
+            
+            ComponentFunction? addFunc = null;
+            
+            using (businessRulesExport)
+            {
+                var foundExport = instance.TryGetExportIndex("add-u8", store, businessRulesExport, out var addExportIndex);
+                foundExport.Should().BeTrue("should find add-u8 function");
+                
+                using (addExportIndex)
+                {
+                    addFunc = instance.GetFunctionFromExportIndex(store, addExportIndex);
+                    addFunc.Should().NotBeNull();
+                }
+            }
+            
+            var args = new ComponentValueBox[] { (byte)100, (byte)150 };
+            var result = addFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            ((ComponentValueBox)result!).AsU8().Should().Be(250);
+        }
+
+        [Fact]
+        public void ItCanInvokeAddS16Function()
+        {
+            // Test the add-s16 function
+            
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("component.wasm");
+            stream.Should().NotBeNull();
+
+            using var engine = new Engine();
+            using var component = Component.FromStream(engine, "component.wasm", stream!);
+            using var linker = new ComponentLinker(engine);
+            
+            var wasiConfig = new WasiConfiguration();
+            using var store = new Store(engine, wasiConfig);
+            
+            linker.AddWasiPreview2();
+            var instance = linker.Instantiate(store, component);
+            
+            // Get the business-rules interface
+            var found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules@0.1.0", store, null, out var businessRulesExport);
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules", store, null, out businessRulesExport);
+            }
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("business-rules", store, null, out businessRulesExport);
+            }
+            
+            found.Should().BeTrue("should find the business-rules interface export");
+            
+            ComponentFunction? addFunc = null;
+            
+            using (businessRulesExport)
+            {
+                var foundExport = instance.TryGetExportIndex("add-s16", store, businessRulesExport, out var addExportIndex);
+                foundExport.Should().BeTrue("should find add-s16 function");
+                
+                using (addExportIndex)
+                {
+                    addFunc = instance.GetFunctionFromExportIndex(store, addExportIndex);
+                    addFunc.Should().NotBeNull();
+                }
+            }
+            
+            var args = new ComponentValueBox[] { (short)1000, (short)2000 };
+            var result = addFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            ((ComponentValueBox)result!).AsS16().Should().Be(3000);
+            
+            // Test negative values
+            args = new ComponentValueBox[] { (short)-5000, (short)3000 };
+            result = addFunc.Invoke(args);
+            ((ComponentValueBox)result!).AsS16().Should().Be(-2000);
+        }
+
+        [Fact]
+        public void ItCanInvokeAddU16Function()
+        {
+            // Test the add-u16 function
+            
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("component.wasm");
+            stream.Should().NotBeNull();
+
+            using var engine = new Engine();
+            using var component = Component.FromStream(engine, "component.wasm", stream!);
+            using var linker = new ComponentLinker(engine);
+            
+            var wasiConfig = new WasiConfiguration();
+            using var store = new Store(engine, wasiConfig);
+            
+            linker.AddWasiPreview2();
+            var instance = linker.Instantiate(store, component);
+            
+            // Get the business-rules interface
+            var found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules@0.1.0", store, null, out var businessRulesExport);
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules", store, null, out businessRulesExport);
+            }
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("business-rules", store, null, out businessRulesExport);
+            }
+            
+            found.Should().BeTrue("should find the business-rules interface export");
+            
+            ComponentFunction? addFunc = null;
+            
+            using (businessRulesExport)
+            {
+                var foundExport = instance.TryGetExportIndex("add-u16", store, businessRulesExport, out var addExportIndex);
+                foundExport.Should().BeTrue("should find add-u16 function");
+                
+                using (addExportIndex)
+                {
+                    addFunc = instance.GetFunctionFromExportIndex(store, addExportIndex);
+                    addFunc.Should().NotBeNull();
+                }
+            }
+            
+            var args = new ComponentValueBox[] { (ushort)10000, (ushort)20000 };
+            var result = addFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            ((ComponentValueBox)result!).AsU16().Should().Be(30000);
+        }
+
+        [Fact]
+        public void ItCanInvokeAddS32Function()
+        {
+            // Test the add-s32 function
+            
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("component.wasm");
+            stream.Should().NotBeNull();
+
+            using var engine = new Engine();
+            using var component = Component.FromStream(engine, "component.wasm", stream!);
+            using var linker = new ComponentLinker(engine);
+            
+            var wasiConfig = new WasiConfiguration();
+            using var store = new Store(engine, wasiConfig);
+            
+            linker.AddWasiPreview2();
+            var instance = linker.Instantiate(store, component);
+            
+            // Get the business-rules interface
+            var found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules@0.1.0", store, null, out var businessRulesExport);
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules", store, null, out businessRulesExport);
+            }
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("business-rules", store, null, out businessRulesExport);
+            }
+            
+            found.Should().BeTrue("should find the business-rules interface export");
+            
+            ComponentFunction? addFunc = null;
+            
+            using (businessRulesExport)
+            {
+                var foundExport = instance.TryGetExportIndex("add-s32", store, businessRulesExport, out var addExportIndex);
+                foundExport.Should().BeTrue("should find add-s32 function");
+                
+                using (addExportIndex)
+                {
+                    addFunc = instance.GetFunctionFromExportIndex(store, addExportIndex);
+                    addFunc.Should().NotBeNull();
+                }
+            }
+            
+            var args = new ComponentValueBox[] { 100000, 200000 };
+            var result = addFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            ((ComponentValueBox)result!).AsS32().Should().Be(300000);
+            
+            // Test negative values
+            args = new ComponentValueBox[] { -1000000, 500000 };
+            result = addFunc.Invoke(args);
+            ((ComponentValueBox)result!).AsS32().Should().Be(-500000);
+        }
+
+        [Fact]
+        public void ItCanInvokeAddU32Function()
+        {
+            // Test the add-u32 function
+            
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("component.wasm");
+            stream.Should().NotBeNull();
+
+            using var engine = new Engine();
+            using var component = Component.FromStream(engine, "component.wasm", stream!);
+            using var linker = new ComponentLinker(engine);
+            
+            var wasiConfig = new WasiConfiguration();
+            using var store = new Store(engine, wasiConfig);
+            
+            linker.AddWasiPreview2();
+            var instance = linker.Instantiate(store, component);
+            
+            // Get the business-rules interface
+            var found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules@0.1.0", store, null, out var businessRulesExport);
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules", store, null, out businessRulesExport);
+            }
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("business-rules", store, null, out businessRulesExport);
+            }
+            
+            found.Should().BeTrue("should find the business-rules interface export");
+            
+            ComponentFunction? addFunc = null;
+            
+            using (businessRulesExport)
+            {
+                var foundExport = instance.TryGetExportIndex("add-u32", store, businessRulesExport, out var addExportIndex);
+                foundExport.Should().BeTrue("should find add-u32 function");
+                
+                using (addExportIndex)
+                {
+                    addFunc = instance.GetFunctionFromExportIndex(store, addExportIndex);
+                    addFunc.Should().NotBeNull();
+                }
+            }
+            
+            var args = new ComponentValueBox[] { 2u, 3u };
+            var result = addFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            ((ComponentValueBox)result!).AsU32().Should().Be(5);
+        }
+
+        [Fact]
+        public void ItCanInvokeAddS64Function()
+        {
+            // Test the add-s64 function
+            
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("component.wasm");
+            stream.Should().NotBeNull();
+
+            using var engine = new Engine();
+            using var component = Component.FromStream(engine, "component.wasm", stream!);
+            using var linker = new ComponentLinker(engine);
+            
+            var wasiConfig = new WasiConfiguration();
+            using var store = new Store(engine, wasiConfig);
+            
+            linker.AddWasiPreview2();
+            var instance = linker.Instantiate(store, component);
+            
+            // Get the business-rules interface
+            var found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules@0.1.0", store, null, out var businessRulesExport);
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules", store, null, out businessRulesExport);
+            }
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("business-rules", store, null, out businessRulesExport);
+            }
+            
+            found.Should().BeTrue("should find the business-rules interface export");
+            
+            ComponentFunction? addFunc = null;
+            
+            using (businessRulesExport)
+            {
+                var foundExport = instance.TryGetExportIndex("add-s64", store, businessRulesExport, out var addExportIndex);
+                foundExport.Should().BeTrue("should find add-s64 function");
+                
+                using (addExportIndex)
+                {
+                    addFunc = instance.GetFunctionFromExportIndex(store, addExportIndex);
+                    addFunc.Should().NotBeNull();
+                }
+            }
+            
+            var args = new ComponentValueBox[] { 1000000000000L, 2000000000000L };
+            var result = addFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            ((ComponentValueBox)result!).AsS64().Should().Be(3000000000000L);
+        }
+
+        [Fact]
+        public void ItCanInvokeAddU64Function()
+        {
+            // Test the add-u64 function
+            
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("component.wasm");
+            stream.Should().NotBeNull();
+
+            using var engine = new Engine();
+            using var component = Component.FromStream(engine, "component.wasm", stream!);
+            using var linker = new ComponentLinker(engine);
+            
+            var wasiConfig = new WasiConfiguration();
+            using var store = new Store(engine, wasiConfig);
+            
+            linker.AddWasiPreview2();
+            var instance = linker.Instantiate(store, component);
+            
+            // Get the business-rules interface
+            var found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules@0.1.0", store, null, out var businessRulesExport);
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules", store, null, out businessRulesExport);
+            }
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("business-rules", store, null, out businessRulesExport);
+            }
+            
+            found.Should().BeTrue("should find the business-rules interface export");
+            
+            ComponentFunction? addFunc = null;
+            
+            using (businessRulesExport)
+            {
+                var foundExport = instance.TryGetExportIndex("add-u64", store, businessRulesExport, out var addExportIndex);
+                foundExport.Should().BeTrue("should find add-u64 function");
+                
+                using (addExportIndex)
+                {
+                    addFunc = instance.GetFunctionFromExportIndex(store, addExportIndex);
+                    addFunc.Should().NotBeNull();
+                }
+            }
+            
+            var args = new ComponentValueBox[] { 5000000000000UL, 10000000000000UL };
+            var result = addFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            ((ComponentValueBox)result!).AsU64().Should().Be(15000000000000UL);
+        }
+
+        [Fact]
+        public void ItCanInvokeAddF32Function()
+        {
+            // Test the add-f32 function
+            
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("component.wasm");
+            stream.Should().NotBeNull();
+
+            using var engine = new Engine();
+            using var component = Component.FromStream(engine, "component.wasm", stream!);
+            using var linker = new ComponentLinker(engine);
+            
+            var wasiConfig = new WasiConfiguration();
+            using var store = new Store(engine, wasiConfig);
+            
+            linker.AddWasiPreview2();
+            var instance = linker.Instantiate(store, component);
+            
+            // Get the business-rules interface
+            var found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules@0.1.0", store, null, out var businessRulesExport);
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules", store, null, out businessRulesExport);
+            }
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("business-rules", store, null, out businessRulesExport);
+            }
+            
+            found.Should().BeTrue("should find the business-rules interface export");
+            
+            ComponentFunction? addFunc = null;
+            
+            using (businessRulesExport)
+            {
+                var foundExport = instance.TryGetExportIndex("add-f32", store, businessRulesExport, out var addExportIndex);
+                foundExport.Should().BeTrue("should find add-f32 function");
+                
+                using (addExportIndex)
+                {
+                    addFunc = instance.GetFunctionFromExportIndex(store, addExportIndex);
+                    addFunc.Should().NotBeNull();
+                }
+            }
+            
+            var args = new ComponentValueBox[] { 2.0f, 3.0f };
+            var result = addFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            ((ComponentValueBox)result!).AsF32().Should().Be(5.0f);
+        }
+
+        [Fact]
+        public void ItCanInvokeAddF64Function()
+        {
+            // Test the add-f64 function
+            
+            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("component.wasm");
+            stream.Should().NotBeNull();
+
+            using var engine = new Engine();
+            using var component = Component.FromStream(engine, "component.wasm", stream!);
+            using var linker = new ComponentLinker(engine);
+            
+            var wasiConfig = new WasiConfiguration();
+            using var store = new Store(engine, wasiConfig);
+            
+            linker.AddWasiPreview2();
+            var instance = linker.Instantiate(store, component);
+            
+            // Get the business-rules interface
+            var found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules@0.1.0", store, null, out var businessRulesExport);
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("dotnetcomp:plugin/business-rules", store, null, out businessRulesExport);
+            }
+            
+            if (!found)
+            {
+                found = instance.TryGetExportIndex("business-rules", store, null, out businessRulesExport);
+            }
+            
+            found.Should().BeTrue("should find the business-rules interface export");
+            
+            ComponentFunction? addFunc = null;
+            
+            using (businessRulesExport)
+            {
+                var foundExport = instance.TryGetExportIndex("add-f64", store, businessRulesExport, out var addExportIndex);
+                foundExport.Should().BeTrue("should find add-f64 function");
+                
+                using (addExportIndex)
+                {
+                    addFunc = instance.GetFunctionFromExportIndex(store, addExportIndex);
+                    addFunc.Should().NotBeNull();
+                }
+            }
+            
+            var args = new ComponentValueBox[] { 3.141592653589793, 2.718281828459045 };
+            var result = addFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            ((ComponentValueBox)result!).AsF64().Should().BeApproximately(5.859874482048838, 0.0000000001);
         }
 
         [Fact(Skip = "Causes crash when using interface export as lookup context")]
