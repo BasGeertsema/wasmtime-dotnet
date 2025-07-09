@@ -27,6 +27,8 @@ interface business-rules {
         delete,
     }
 
+    type persons = list<person>;
+
     add-s8: func(x :s8, y :s8) -> s8;    
     add-u8: func(x :u8, y :u8) -> u8;
     add-s16: func(x :s16, y :s16) -> s16;
@@ -38,6 +40,7 @@ interface business-rules {
     add-f32: func(x :f32, y :f32) -> f32;
     add-f64: func(x :f64, y :f64) -> f64;
     reverse-list-s32: func(x :list<s32>) -> list<s32>;
+    reverse-list-person: func(x: persons) -> persons;
     echo-tuple2: func(x :tuple<f32, s32>) -> tuple<f32, s32>;
     echo-tuple3: func(x :tuple<f32, s32, u8>) -> tuple<f32, s32, u8>;
     echo-record: func(x: person) -> person;

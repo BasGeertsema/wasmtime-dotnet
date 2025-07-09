@@ -406,6 +406,117 @@ namespace Wasmtime.Tests
         }
 
         [Fact]
+        public void ItCanInvokeReverseListPersonFunction()
+        {
+            var reverseFunc = GetComponentFunction("reverse-list-person");
+            
+            // Test with empty list
+            var emptyList = new ComponentValueBox[0];
+            var args = new ComponentValueBox[] { ComponentValueBox.FromList(emptyList) };
+            var result = reverseFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            
+            // For empty lists, we might get an int[] instead of ComponentValueBox[]
+            var resultBox = (ComponentValueBox)result!;
+            ComponentValueBox[]? resultList;
+            if (resultBox.ObjectValue is int[] intArray && intArray.Length == 0)
+            {
+                // Empty list case - convert to empty ComponentValueBox array
+                resultList = Array.Empty<ComponentValueBox>();
+            }
+            else
+            {
+                resultList = resultBox.AsList<ComponentValueBox>();
+                resultList.Should().NotBeNull();
+            }
+            resultList.Should().BeEmpty();
+            
+            // Test with single person
+            var person1 = ComponentValueBox.FromRecord(new (string, ComponentValueBox)[]
+            {
+                ("name", "Alice"),
+                ("age", (byte)30)
+            });
+            var singlePersonList = new ComponentValueBox[] { person1 };
+            args = new ComponentValueBox[] { ComponentValueBox.FromList(singlePersonList) };
+            
+            result = reverseFunc.Invoke(args);
+            result.Should().NotBeNull();
+            resultList = ((ComponentValueBox)result!).AsList<ComponentValueBox>();
+            resultList.Should().NotBeNull();
+            resultList.Should().HaveCount(1);
+            
+            var resultPerson = resultList![0].AsRecord();
+            resultPerson.Should().NotBeNull();
+            resultPerson![0].Item1.Should().Be("name");
+            resultPerson[0].Item2.AsString().Should().Be("Alice");
+            resultPerson[1].Item1.Should().Be("age");
+            resultPerson[1].Item2.AsU8().Should().Be(30);
+            
+            // Test with multiple people
+            var person2 = ComponentValueBox.FromRecord(new (string, ComponentValueBox)[]
+            {
+                ("name", "Bob"),
+                ("age", (byte)25)
+            });
+            var person3 = ComponentValueBox.FromRecord(new (string, ComponentValueBox)[]
+            {
+                ("name", "Charlie"),
+                ("age", (byte)35)
+            });
+            var multiplePersonList = new ComponentValueBox[] { person1, person2, person3 };
+            args = new ComponentValueBox[] { ComponentValueBox.FromList(multiplePersonList) };
+            
+            result = reverseFunc.Invoke(args);
+            result.Should().NotBeNull();
+            resultList = ((ComponentValueBox)result!).AsList<ComponentValueBox>();
+            resultList.Should().NotBeNull();
+            resultList.Should().HaveCount(3);
+            
+            // Check reversed order: Charlie, Bob, Alice
+            resultPerson = resultList![0].AsRecord();
+            resultPerson![0].Item2.AsString().Should().Be("Charlie");
+            resultPerson[1].Item2.AsU8().Should().Be(35);
+            
+            resultPerson = resultList[1].AsRecord();
+            resultPerson![0].Item2.AsString().Should().Be("Bob");
+            resultPerson[1].Item2.AsU8().Should().Be(25);
+            
+            resultPerson = resultList[2].AsRecord();
+            resultPerson![0].Item2.AsString().Should().Be("Alice");
+            resultPerson[1].Item2.AsU8().Should().Be(30);
+            
+            // Test with people having empty names and zero ages
+            var person4 = ComponentValueBox.FromRecord(new (string, ComponentValueBox)[]
+            {
+                ("name", ""),
+                ("age", (byte)0)
+            });
+            var person5 = ComponentValueBox.FromRecord(new (string, ComponentValueBox)[]
+            {
+                ("name", "Test"),
+                ("age", (byte)100)
+            });
+            var edgeCaseList = new ComponentValueBox[] { person4, person5 };
+            args = new ComponentValueBox[] { ComponentValueBox.FromList(edgeCaseList) };
+            
+            result = reverseFunc.Invoke(args);
+            result.Should().NotBeNull();
+            resultList = ((ComponentValueBox)result!).AsList<ComponentValueBox>();
+            resultList.Should().NotBeNull();
+            resultList.Should().HaveCount(2);
+            
+            // Check reversed order: Test, ""
+            resultPerson = resultList![0].AsRecord();
+            resultPerson![0].Item2.AsString().Should().Be("Test");
+            resultPerson[1].Item2.AsU8().Should().Be(100);
+            
+            resultPerson = resultList[1].AsRecord();
+            resultPerson![0].Item2.AsString().Should().Be("");
+            resultPerson[1].Item2.AsU8().Should().Be(0);
+        }
+
+        [Fact]
         public void ItCanInvokeEchoTupleFunction()
         {
             var echoFunc = GetComponentFunction("echo-tuple2");

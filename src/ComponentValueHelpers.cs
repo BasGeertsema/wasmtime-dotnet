@@ -97,6 +97,7 @@ namespace Wasmtime
                                 var element = array.GetValue(i);
                                 ComponentValueBox elementBox = element switch
                                 {
+                                    ComponentValueBox boxed => boxed,
                                     bool b => b,
                                     sbyte s8 => s8,
                                     byte u8 => u8,
@@ -382,6 +383,13 @@ namespace Wasmtime
                             ComponentValueKind.F64 => typeof(double),
                             ComponentValueKind.Char => typeof(char),
                             ComponentValueKind.String => typeof(string),
+                            ComponentValueKind.List => typeof(ComponentValueBox),
+                            ComponentValueKind.Tuple => typeof(ComponentValueBox),
+                            ComponentValueKind.Record => typeof(ComponentValueBox),
+                            ComponentValueKind.Variant => typeof(ComponentValueBox),
+                            ComponentValueKind.Enum => typeof(ComponentValueBox),
+                            ComponentValueKind.Option => typeof(ComponentValueBox),
+                            ComponentValueKind.Flags => typeof(ComponentValueBox),
                             _ => throw new NotSupportedException($"Unsupported list element kind: {firstElement.kind}")
                         };
 
@@ -407,6 +415,13 @@ namespace Wasmtime
                                 ComponentValueKind.F64 => elementBox.AsF64(),
                                 ComponentValueKind.Char => elementBox.AsChar(),
                                 ComponentValueKind.String => elementBox.AsString(),
+                                ComponentValueKind.List => elementBox,
+                                ComponentValueKind.Tuple => elementBox,
+                                ComponentValueKind.Record => elementBox,
+                                ComponentValueKind.Variant => elementBox,
+                                ComponentValueKind.Enum => elementBox,
+                                ComponentValueKind.Option => elementBox,
+                                ComponentValueKind.Flags => elementBox,
                                 _ => throw new NotSupportedException($"Unsupported list element kind: {elementBox.Kind}")
                             };
                             array.SetValue(elementValue, i);
