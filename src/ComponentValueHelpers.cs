@@ -269,7 +269,39 @@ namespace Wasmtime
                     }
                     break;
 
-                // TODO: Implement complex types (Record, Variant, Enum, Option, Result, Flags)
+                case ComponentValueKind.Flags:
+                    if (box.ObjectValue is string[] flagNames)
+                    {
+                        var flagCount = flagNames.Length;
+                        WasmName* flagsData = null;
+                        
+                        if (flagCount > 0)
+                        {
+                            flagsData = (WasmName*)Marshal.AllocHGlobal(flagCount * sizeof(WasmName));
+                            
+                            for (int i = 0; i < flagCount; i++)
+                            {
+                                var flagBytes = Encoding.UTF8.GetBytes(flagNames[i]);
+                                var flagPtr = Marshal.AllocHGlobal(flagBytes.Length);
+                                Marshal.Copy(flagBytes, 0, flagPtr, flagBytes.Length);
+                                
+                                flagsData[i] = new WasmName
+                                {
+                                    size = (nuint)flagBytes.Length,
+                                    data = (byte*)flagPtr
+                                };
+                            }
+                        }
+                        
+                        value.of.flags = new ValFlags
+                        {
+                            size = (nuint)flagCount,
+                            data = flagsData
+                        };
+                    }
+                    break;
+
+                // TODO: Implement complex types (Result)
                 default:
                     throw new NotImplementedException($"Component value kind {box.Kind} is not yet implemented");
             }
@@ -417,6 +449,7 @@ namespace Wasmtime
                                 ComponentValueKind.Variant => elementBox.AsVariant(), // Nested variant
                                 ComponentValueKind.Enum => elementBox.AsEnum(), // Nested enum
                                 ComponentValueKind.Option => elementBox.AsOption(), // Nested option
+                                ComponentValueKind.Flags => elementBox.AsFlags(), // Nested flags
                                 _ => throw new NotSupportedException($"Unsupported tuple element kind: {elementBox.Kind}")
                             };
                             tupleElements[i] = elementValue!;
@@ -501,7 +534,33 @@ namespace Wasmtime
                         return ComponentValueBox.FromOption(null);
                     }
 
-                // TODO: Implement complex types
+                case ComponentValueKind.Flags:
+                    // Convert flags array
+                    if (value.of.flags.size > 0 && value.of.flags.data != null)
+                    {
+                        var flagNames = new string[(int)value.of.flags.size];
+                        
+                        for (int i = 0; i < (int)value.of.flags.size; i++)
+                        {
+                            var flagName = value.of.flags.data[i];
+                            if (flagName.data != null && flagName.size > 0)
+                            {
+                                byte[] flagBytes = new byte[flagName.size];
+                                Marshal.Copy((IntPtr)flagName.data, flagBytes, 0, (int)flagName.size);
+                                flagNames[i] = Encoding.UTF8.GetString(flagBytes);
+                            }
+                            else
+                            {
+                                flagNames[i] = string.Empty;
+                            }
+                        }
+                        
+                        return ComponentValueBox.FromFlags(flagNames);
+                    }
+                    // Return an empty flags array
+                    return ComponentValueBox.FromFlags(Array.Empty<string>());
+
+                // TODO: Implement complex types (Result)
                 default:
                     throw new NotImplementedException($"Component value kind {value.kind} is not yet implemented");
             }
@@ -614,7 +673,27 @@ namespace Wasmtime
                 value->of.option = null;
             }
 
-            // TODO: Free other complex types (result, flags)
+            // Free allocated flags
+            if (value->kind == ComponentValueKind.Flags && value->of.flags.data != null)
+            {
+                // First free each flag name
+                for (nuint i = 0; i < value->of.flags.size; i++)
+                {
+                    if (value->of.flags.data[i].data != null)
+                    {
+                        Marshal.FreeHGlobal((IntPtr)value->of.flags.data[i].data);
+                        value->of.flags.data[i].data = null;
+                        value->of.flags.data[i].size = 0;
+                    }
+                }
+                
+                // Then free the flags array itself
+                Marshal.FreeHGlobal((IntPtr)value->of.flags.data);
+                value->of.flags.data = null;
+                value->of.flags.size = 0;
+            }
+
+            // TODO: Free other complex types (result)
         }
 
         /// <summary>

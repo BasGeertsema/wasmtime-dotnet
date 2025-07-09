@@ -213,6 +213,15 @@ namespace Wasmtime
         }
 
         /// <summary>
+        /// "Unbox" flags value.
+        /// </summary>
+        public string[]? AsFlags()
+        {
+            ThrowIfNotOfCorrectKind(ComponentValueKind.Flags);
+            return ObjectValue as string[];
+        }
+
+        /// <summary>
         /// "Unbox" as a generic type.
         /// </summary>
         public T? As<T>() where T : class
@@ -378,6 +387,14 @@ namespace Wasmtime
         public static ComponentValueBox FromOption(ComponentValueBox? value)
         {
             return new ComponentValueBox(ComponentValueKind.Option, value);
+        }
+
+        /// <summary>
+        /// Create a ComponentValueBox from flags (array of flag names)
+        /// </summary>
+        public static ComponentValueBox FromFlags(string[] flags)
+        {
+            return new ComponentValueBox(ComponentValueKind.Flags, flags);
         }
 
         /// <summary>

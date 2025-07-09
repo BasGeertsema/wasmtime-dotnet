@@ -20,6 +20,13 @@ interface business-rules {
         blue,
     }
 
+    flags allowed-methods {
+        get,
+        post,
+        put,
+        delete,
+    }
+
     add-s8: func(x :s8, y :s8) -> s8;    
     add-u8: func(x :u8, y :u8) -> u8;
     add-s16: func(x :s16, y :s16) -> s16;
@@ -36,6 +43,8 @@ interface business-rules {
     echo-record: func(x: person) -> person;
     echo-variant: func(x: order-status) -> order-status;
     echo-enum: func(x: color) -> color;
+    echo-option: func(x: option<person>) -> option<person>;
+    echo-flags: func(x: allowed-methods) -> allowed-methods;
 }
 
 world guest {

@@ -717,6 +717,77 @@ namespace Wasmtime.Tests
             resultPerson[1].Item2.AsU8().Should().Be(0);
         }
 
+        [Fact]
+        public void ItCanInvokeEchoFlagsFunction()
+        {
+            var echoFunc = GetComponentFunction("echo-flags");
+            
+            // Test case 1: No flags set (empty)
+            var emptyFlags = ComponentValueBox.FromFlags(new string[] { });
+            var args = new ComponentValueBox[] { emptyFlags };
+            
+            var result = echoFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            
+            var resultFlags = ((ComponentValueBox)result!).AsFlags();
+            resultFlags.Should().NotBeNull();
+            resultFlags.Should().BeEmpty();
+            
+            // Test case 2: Single flag (GET)
+            var getFlag = ComponentValueBox.FromFlags(new string[] { "get" });
+            args = new ComponentValueBox[] { getFlag };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultFlags = ((ComponentValueBox)result!).AsFlags();
+            resultFlags.Should().NotBeNull();
+            resultFlags.Should().HaveCount(1);
+            resultFlags.Should().Contain("get");
+            
+            // Test case 3: Multiple flags (GET, POST)
+            var multipleFlags = ComponentValueBox.FromFlags(new string[] { "get", "post" });
+            args = new ComponentValueBox[] { multipleFlags };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultFlags = ((ComponentValueBox)result!).AsFlags();
+            resultFlags.Should().NotBeNull();
+            resultFlags.Should().HaveCount(2);
+            resultFlags.Should().Contain("get");
+            resultFlags.Should().Contain("post");
+            
+            // Test case 4: All flags
+            var allFlags = ComponentValueBox.FromFlags(new string[] { "get", "post", "put", "delete" });
+            args = new ComponentValueBox[] { allFlags };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultFlags = ((ComponentValueBox)result!).AsFlags();
+            resultFlags.Should().NotBeNull();
+            resultFlags.Should().HaveCount(4);
+            resultFlags.Should().Contain("get");
+            resultFlags.Should().Contain("post");
+            resultFlags.Should().Contain("put");
+            resultFlags.Should().Contain("delete");
+            
+            // Test case 5: Flags in different order
+            var reorderedFlags = ComponentValueBox.FromFlags(new string[] { "delete", "put", "get" });
+            args = new ComponentValueBox[] { reorderedFlags };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultFlags = ((ComponentValueBox)result!).AsFlags();
+            resultFlags.Should().NotBeNull();
+            resultFlags.Should().HaveCount(3);
+            resultFlags.Should().Contain("get");
+            resultFlags.Should().Contain("put");
+            resultFlags.Should().Contain("delete");
+        }
+
         [Fact(Skip = "Causes crash when using interface export as lookup context")]
         public void DemonstratesComponentExportTraversal()
         {
