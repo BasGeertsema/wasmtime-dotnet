@@ -48,6 +48,7 @@ interface business-rules {
     echo-enum: func(x: color) -> color;
     echo-option: func(x: option<person>) -> option<person>;
     echo-flags: func(x: allowed-methods) -> allowed-methods;
+    echo-char: func(x: char) -> char;
 }
 
 world guest {

@@ -142,11 +142,22 @@ namespace Wasmtime
 
         /// <summary>
         /// "Unbox" a <see cref="char"/> value.
+        /// Note: This only works correctly for Basic Multilingual Plane characters (U+0000 to U+FFFF).
+        /// For full Unicode scalar value support, use AsUnicodeScalar().
         /// </summary>
         public char AsChar()
         {
             ThrowIfNotOfCorrectKind(ComponentValueKind.Char);
             return (char)Union.character;
+        }
+
+        /// <summary>
+        /// "Unbox" a Unicode scalar value (full 32-bit range).
+        /// </summary>
+        public uint AsUnicodeScalar()
+        {
+            ThrowIfNotOfCorrectKind(ComponentValueKind.Char);
+            return Union.character;
         }
 
         /// <summary>
@@ -395,6 +406,30 @@ namespace Wasmtime
         public static ComponentValueBox FromFlags(string[] flags)
         {
             return new ComponentValueBox(ComponentValueKind.Flags, flags);
+        }
+
+        /// <summary>
+        /// Create a ComponentValueBox from a Unicode scalar value.
+        /// </summary>
+        /// <param name="unicodeScalar">A Unicode scalar value (U+0000 to U+10FFFF, excluding surrogates)</param>
+        public static ComponentValueBox FromUnicodeScalar(uint unicodeScalar)
+        {
+            // Validate that it's a valid Unicode scalar value
+            if ((unicodeScalar > 0x10FFFF) || (unicodeScalar >= 0xD800 && unicodeScalar <= 0xDFFF))
+            {
+                throw new ArgumentException($"Invalid Unicode scalar value: 0x{unicodeScalar:X}");
+            }
+            return new ComponentValueBox(ComponentValueKind.Char, new ComponentValueUnion { character = unicodeScalar });
+        }
+
+        /// <summary>
+        /// Create a ComponentValueBox from a char value.
+        /// Note: This only supports Basic Multilingual Plane characters (U+0000 to U+FFFF).
+        /// For full Unicode scalar value support, use FromUnicodeScalar.
+        /// </summary>
+        public static ComponentValueBox FromChar(char value)
+        {
+            return new ComponentValueBox(ComponentValueKind.Char, new ComponentValueUnion { character = (uint)value });
         }
 
         /// <summary>

@@ -351,7 +351,8 @@ namespace Wasmtime
                     return value.of.f64;
 
                 case ComponentValueKind.Char:
-                    return (char)value.of.character;
+                    // Return a ComponentValueBox that preserves the full Unicode scalar value
+                    return new ComponentValueBox(ComponentValueKind.Char, new ComponentValueUnion { character = value.of.character });
 
                 case ComponentValueKind.String:
                     if (value.of.@string.data != null && value.of.@string.size > 0)
@@ -413,7 +414,7 @@ namespace Wasmtime
                                 ComponentValueKind.U64 => elementBox.AsU64(),
                                 ComponentValueKind.F32 => elementBox.AsF32(),
                                 ComponentValueKind.F64 => elementBox.AsF64(),
-                                ComponentValueKind.Char => elementBox.AsChar(),
+                                ComponentValueKind.Char => elementBox, // Keep as ComponentValueBox to preserve full Unicode scalar value
                                 ComponentValueKind.String => elementBox.AsString(),
                                 ComponentValueKind.List => elementBox,
                                 ComponentValueKind.Tuple => elementBox,
@@ -456,7 +457,7 @@ namespace Wasmtime
                                 ComponentValueKind.U64 => elementBox.AsU64(),
                                 ComponentValueKind.F32 => elementBox.AsF32(),
                                 ComponentValueKind.F64 => elementBox.AsF64(),
-                                ComponentValueKind.Char => elementBox.AsChar(),
+                                ComponentValueKind.Char => elementBox, // Keep as ComponentValueBox to preserve full Unicode scalar value
                                 ComponentValueKind.String => elementBox.AsString(),
                                 ComponentValueKind.List => elementBox.ObjectValue, // Keep as array
                                 ComponentValueKind.Tuple => elementBox.AsTuple(), // Nested tuple

@@ -899,6 +899,136 @@ namespace Wasmtime.Tests
             resultFlags.Should().Contain("delete");
         }
 
+        [Fact]
+        public void ItCanInvokeEchoCharFunction()
+        {
+            var echoFunc = GetComponentFunction("echo-char");
+            
+            // Test case 1: Basic ASCII character
+            var charA = ComponentValueBox.FromChar('A');
+            var args = new ComponentValueBox[] { charA };
+            
+            var result = echoFunc!.Invoke(args);
+            result.Should().NotBeNull();
+            
+            var resultChar = ((ComponentValueBox)result!).AsChar();
+            resultChar.Should().Be('A');
+            
+            // Test case 2: Extended ASCII / Latin-1
+            var charAccent = ComponentValueBox.FromChar('é'); // U+00E9
+            args = new ComponentValueBox[] { charAccent };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultChar = ((ComponentValueBox)result!).AsChar();
+            resultChar.Should().Be('é');
+            
+            // Test case 3: CJK character (within BMP)
+            var charChinese = ComponentValueBox.FromChar('中'); // U+4E2D
+            args = new ComponentValueBox[] { charChinese };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultChar = ((ComponentValueBox)result!).AsChar();
+            resultChar.Should().Be('中');
+            
+            // Test case 4: Character at the edge of BMP
+            var charBmpEdge = ComponentValueBox.FromChar('\uFFFD'); // U+FFFD (Replacement Character)
+            args = new ComponentValueBox[] { charBmpEdge };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultChar = ((ComponentValueBox)result!).AsChar();
+            resultChar.Should().Be('\uFFFD');
+            
+            // Test case 5: Character beyond BMP (emoji)
+            // 😀 (U+1F600) - cannot be represented as a single C# char
+            var charEmoji = ComponentValueBox.FromUnicodeScalar(0x1F600);
+            args = new ComponentValueBox[] { charEmoji };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            var resultScalar = ((ComponentValueBox)result!).AsUnicodeScalar();
+            resultScalar.Should().Be(0x1F600);
+            
+            // Test case 6: Mathematical Alphanumeric Symbols
+            // 𝐀 (U+1D400) - Mathematical Bold Capital A
+            var charMath = ComponentValueBox.FromUnicodeScalar(0x1D400);
+            args = new ComponentValueBox[] { charMath };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultScalar = ((ComponentValueBox)result!).AsUnicodeScalar();
+            resultScalar.Should().Be(0x1D400);
+            
+            // Test case 7: Character just before surrogate range
+            var charBeforeSurrogate = ComponentValueBox.FromUnicodeScalar(0xD7FF);
+            args = new ComponentValueBox[] { charBeforeSurrogate };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultScalar = ((ComponentValueBox)result!).AsUnicodeScalar();
+            resultScalar.Should().Be(0xD7FF);
+            
+            // Test case 8: Character just after surrogate range
+            var charAfterSurrogate = ComponentValueBox.FromUnicodeScalar(0xE000);
+            args = new ComponentValueBox[] { charAfterSurrogate };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultScalar = ((ComponentValueBox)result!).AsUnicodeScalar();
+            resultScalar.Should().Be(0xE000);
+            
+            // Test case 9: Maximum valid Unicode scalar value
+            var charMax = ComponentValueBox.FromUnicodeScalar(0x10FFFF);
+            args = new ComponentValueBox[] { charMax };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultScalar = ((ComponentValueBox)result!).AsUnicodeScalar();
+            resultScalar.Should().Be(0x10FFFF);
+            
+            // Test case 10: Null character
+            var charNull = ComponentValueBox.FromChar('\0');
+            args = new ComponentValueBox[] { charNull };
+            
+            result = echoFunc.Invoke(args);
+            result.Should().NotBeNull();
+            
+            resultChar = ((ComponentValueBox)result!).AsChar();
+            resultChar.Should().Be('\0');
+        }
+
+        [Fact]
+        public void ComponentValueBoxRejectsInvalidUnicodeScalarValues()
+        {
+            // Test surrogate values are rejected
+            Action createSurrogateStart = () => ComponentValueBox.FromUnicodeScalar(0xD800);
+            createSurrogateStart.Should().Throw<ArgumentException>()
+                .WithMessage("Invalid Unicode scalar value: 0xD800");
+            
+            Action createSurrogateEnd = () => ComponentValueBox.FromUnicodeScalar(0xDFFF);
+            createSurrogateEnd.Should().Throw<ArgumentException>()
+                .WithMessage("Invalid Unicode scalar value: 0xDFFF");
+            
+            // Test values above U+10FFFF are rejected
+            Action createAboveMax = () => ComponentValueBox.FromUnicodeScalar(0x110000);
+            createAboveMax.Should().Throw<ArgumentException>()
+                .WithMessage("Invalid Unicode scalar value: 0x110000");
+            
+            Action createWayAboveMax = () => ComponentValueBox.FromUnicodeScalar(0xFFFFFFFF);
+            createWayAboveMax.Should().Throw<ArgumentException>()
+                .WithMessage("Invalid Unicode scalar value: 0xFFFFFFFF");
+        }
+
         [Fact(Skip = "Causes crash when using interface export as lookup context")]
         public void DemonstratesComponentExportTraversal()
         {
