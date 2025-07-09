@@ -359,6 +359,20 @@ namespace Wasmtime.Tests
         }
 
         [Fact]
+        public void ItCanInvokeReverseListS32FunctionWithEmptyList()
+        {
+            var reverseFunc = GetComponentFunction("reverse-list-s32");
+
+            // Test with empty list
+            var args = new ComponentValueBox[] { ComponentValueBox.FromList(Array.Empty<int>()) };
+            var result = reverseFunc.Invoke(args);
+            result.Should().NotBeNull();
+            var resultList = ((ComponentValueBox)result!).AsList<int>();
+            resultList.Should().NotBeNull();
+            resultList.Should().BeEmpty();
+        }
+
+        [Fact]
         public void ItCanInvokeReverseListS32Function()
         {
             var reverseFunc = GetComponentFunction("reverse-list-s32");
@@ -373,14 +387,6 @@ namespace Wasmtime.Tests
             var resultList = ((ComponentValueBox)result!).AsList<int>();
             resultList.Should().NotBeNull();
             resultList.Should().Equal(new int[] { 5, 4, 3, 2, 1 });
-            
-            // Test with empty list
-            args = new ComponentValueBox[] { ComponentValueBox.FromList(Array.Empty<int>()) };
-            result = reverseFunc.Invoke(args);
-            result.Should().NotBeNull();
-            resultList = ((ComponentValueBox)result!).AsList<int>();
-            resultList.Should().NotBeNull();
-            resultList.Should().BeEmpty();
             
             // Test with single element
             args = new ComponentValueBox[] { ComponentValueBox.FromList(new int[] { 42 }) };
