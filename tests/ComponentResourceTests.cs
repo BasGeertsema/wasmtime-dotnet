@@ -26,6 +26,11 @@ namespace Wasmtime.Tests
             var wasiConfig = new WasiConfiguration();
             var store = new Store(engine, wasiConfig);
             
+            // Define the required host function before instantiation
+            using var rootInstance = linker.GetRoot();
+            using var hostServicesInstance = rootInstance.AddInstance("dotnetcomp:plugin/host-services@0.1.0");
+            hostServicesInstance.DefineFunction<int, int, int>("", "host-add-s32", (x, y) => x + y);
+            
             linker.AddWasiPreview2();
             var instance = linker.Instantiate(store, component);
             instance.Should().NotBeNull();

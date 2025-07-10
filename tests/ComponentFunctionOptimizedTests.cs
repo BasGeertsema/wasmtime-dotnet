@@ -37,6 +37,11 @@ namespace Wasmtime.Tests
                 var wasiConfig = new WasiConfiguration();
                 Store = new Store(Engine, wasiConfig);
                 
+                // Define the required host function before instantiation
+                using var rootInstance = Linker.GetRoot();
+                using var hostServicesInstance = rootInstance.AddInstance("dotnetcomp:plugin/host-services@0.1.0");
+                hostServicesInstance.DefineFunction<int, int, int>("", "host-add-s32", (x, y) => x + y);
+                
                 Linker.AddWasiPreview2();
                 Instance = Linker.Instantiate(Store, Component);
                 Instance.Should().NotBeNull();
@@ -276,7 +281,7 @@ namespace Wasmtime.Tests
             var wrappedFunc = addFunc.WrapFunc<int, int, int>();
             wrappedFunc.Should().NotBeNull();
             
-            const int iterations = 1000;
+            const int iterations = 50_000;
             
             // Measure wrapped function performance
             var wrappedStart = DateTime.UtcNow;
