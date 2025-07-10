@@ -58,11 +58,17 @@ interface business-rules {
     echo-char: func(x: char) -> char;
     open-resource: func() -> blob;
     close-resource: func(x :blob) -> bool;
+    call-host-add-s32: func(x :s32, y :s32) -> s32;
+}
+
+interface host-services {
+    host-add-s32: func(x :s32, y :s32) -> s32;
 }
 
 world guest {
     export business-rules;
+    import host-services;
 }
 
-world host {    
+world host {        
 }

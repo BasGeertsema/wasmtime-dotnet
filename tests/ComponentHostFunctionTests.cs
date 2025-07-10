@@ -125,7 +125,7 @@ namespace Wasmtime.Tests
         //       and DefineFunction<T1, T2, TResult> methods in ComponentLinkerInstance.cs
         //       The native callback is properly registered but argument conversion is incomplete.
         
-        [Fact(Skip = "Host function argument/result marshaling not fully implemented")]
+        [Fact]
         public void ItCanInvokeHostFunctionFromComponent()
         {
             using var engine = new Engine();
@@ -144,15 +144,76 @@ namespace Wasmtime.Tests
             int hostResult = 0;
             
             // Define the host function that the component imports
-            // The component imports an instance "test-host" with function "add-numbers"
-            using var testHostInstance = rootInstance.AddInstance("test-host");
-            testHostInstance.DefineFunction<int, int, int>("", "add-numbers", (x, y) =>
+            // According to plugin.wit, it's in the "host-services" interface  
+            using var hostServicesInstance = rootInstance.AddInstance("dotnetcomp:plugin/host-services@0.1.0");
+            hostServicesInstance.DefineFunction<int, int, int>("", "host-add-s32", (x, y) =>
             {
                 hostCallCount++;
                 lastX = x;
                 lastY = y;
                 hostResult = x + y + 1000; // Add 1000 to make it clear this is from the host
                 return hostResult;
+            });
+            
+            // Load the test component that imports this host function
+            byte[] componentBytes;
+            using (var stream = System.Reflection.Assembly.GetExecutingAssembly()
+                    .GetManifestResourceStream("host-services-import.wasm")!)
+            {
+                componentBytes = new byte[stream.Length];
+                stream.Read(componentBytes, 0, componentBytes.Length);
+            }
+            using var component = Component.FromBytes(engine, "host-services-import.wasm", componentBytes);
+            
+            // Instantiate the component
+            linker.AddWasiPreview2();
+            var instance = linker.Instantiate(store, component);
+            
+            // Get the exported function that calls the host function
+            var callHostAddS32 = instance.GetFunction("call-host-add-s32", store);
+            callHostAddS32.Should().NotBeNull();
+            
+            // Call the function which should invoke our host function
+            var result = callHostAddS32!.Invoke(new ComponentValueBox[] { 5, 7 });
+            
+            // Verify the host function was called
+            hostCallCount.Should().Be(1);
+            lastX.Should().Be(5);
+            lastY.Should().Be(7);
+            hostResult.Should().Be(1012); // 5 + 7 + 1000
+            
+            // Check the result
+            result.Should().NotBeNull();
+            var resultBox = (ComponentValueBox)result!;
+            resultBox.AsS32().Should().Be(1012); // The component should return what the host returned
+        }
+        
+        [Fact]
+        public void ItCanCallHostAddS32Function()
+        {
+            using var engine = new Engine();
+            using var linker = new ComponentLinker(engine);
+            
+            var wasiConfig = new WasiConfiguration();
+            using var store = new Store(engine, wasiConfig);
+            
+            // Get the root instance to define functions
+            using var rootInstance = linker.GetRoot();
+            
+            // Track host function invocation
+            int hostCallCount = 0;
+            int lastX = 0;
+            int lastY = 0;
+            
+            // Define the host-add-s32 function that adds two numbers together
+            // This matches the expected import in the component
+            using var testHostInstance = rootInstance.AddInstance("test-host");
+            testHostInstance.DefineFunction<int, int, int>("", "add-numbers", (x, y) =>
+            {
+                hostCallCount++;
+                lastX = x;
+                lastY = y;
+                return x + y;
             });
             
             // Load the test component that imports this host function
@@ -169,23 +230,22 @@ namespace Wasmtime.Tests
             linker.AddWasiPreview2();
             var instance = linker.Instantiate(store, component);
             
-            // Get the exported function that calls the host function
+            // Get the call-host-add-s32 function which will call back into the host
             var callHostAddS32 = instance.GetFunction("test-add", store);
             callHostAddS32.Should().NotBeNull();
             
             // Call the function which should invoke our host function
-            var result = callHostAddS32!.Invoke(new ComponentValueBox[] { 5, 7 });
+            var result = callHostAddS32!.Invoke(new ComponentValueBox[] { 10, 32 });
             
-            // Verify the host function was called
+            // Verify that the host function was called
             hostCallCount.Should().Be(1);
-            lastX.Should().Be(5);
-            lastY.Should().Be(7);
-            hostResult.Should().Be(1012); // 5 + 7 + 1000
+            lastX.Should().Be(10);
+            lastY.Should().Be(32);
             
-            // Check the result
+            // Verify that the result is correct
             result.Should().NotBeNull();
             var resultBox = (ComponentValueBox)result!;
-            resultBox.AsS32().Should().Be(1012); // The component should return what the host returned
+            resultBox.AsS32().Should().Be(42); // 10 + 32 = 42
         }
     }
 }

@@ -26,6 +26,7 @@
     <EmbeddedResource Include="Modules/hello.wasm" LogicalName="hello.wasm" />
     <EmbeddedResource Include="Components/component.wasm"  LogicalName="component.wasm"/>
     <EmbeddedResource Include="Components/host-import.wasm"  LogicalName="host-import.wasm"/>
+    <EmbeddedResource Include="Components/host-services-import.wasm"  LogicalName="host-services-import.wasm"/>
   </ItemGroup>
 
   <PropertyGroup>
