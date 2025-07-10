@@ -181,7 +181,54 @@ namespace Wasmtime
         {
             var value = default(ComponentValue);
             value.kind = kind;
-            value.of = Unsafe.As<ComponentValueRaw, ComponentValueUnion>(ref this);
+            
+            // We need to properly copy the raw value into the union field
+            // Can't use Unsafe.As because ComponentValue has padding between kind and of
+            switch (kind)
+            {
+                case ComponentValueKind.Bool:
+                    value.of.boolean = this.boolean;
+                    break;
+                case ComponentValueKind.S8:
+                    value.of.s8 = this.s8;
+                    break;
+                case ComponentValueKind.U8:
+                    value.of.u8 = this.u8;
+                    break;
+                case ComponentValueKind.S16:
+                    value.of.s16 = this.s16;
+                    break;
+                case ComponentValueKind.U16:
+                    value.of.u16 = this.u16;
+                    break;
+                case ComponentValueKind.S32:
+                    value.of.s32 = this.s32;
+                    break;
+                case ComponentValueKind.U32:
+                    value.of.u32 = this.u32;
+                    break;
+                case ComponentValueKind.S64:
+                    value.of.s64 = this.s64;
+                    break;
+                case ComponentValueKind.U64:
+                    value.of.u64 = this.u64;
+                    break;
+                case ComponentValueKind.F32:
+                    value.of.f32 = this.f32;
+                    break;
+                case ComponentValueKind.F64:
+                    value.of.f64 = this.f64;
+                    break;
+                case ComponentValueKind.Char:
+                    value.of.character = this.character;
+                    break;
+                case ComponentValueKind.String:
+                    value.of.@string = this.@string;
+                    break;
+                default:
+                    throw new NotSupportedException($"Component value kind {kind} is not yet supported in optimized path");
+            }
+            
             return value;
         }
 
@@ -191,7 +238,56 @@ namespace Wasmtime
         /// </summary>
         public static ComponentValueRaw FromComponentValue(ComponentValue value)
         {
-            return Unsafe.As<ComponentValueUnion, ComponentValueRaw>(ref value.of);
+            var raw = default(ComponentValueRaw);
+            
+            // We need to properly copy the union value into the raw struct
+            // Can't use Unsafe.As because of potential alignment/padding issues
+            switch (value.kind)
+            {
+                case ComponentValueKind.Bool:
+                    raw.boolean = value.of.boolean;
+                    break;
+                case ComponentValueKind.S8:
+                    raw.s8 = value.of.s8;
+                    break;
+                case ComponentValueKind.U8:
+                    raw.u8 = value.of.u8;
+                    break;
+                case ComponentValueKind.S16:
+                    raw.s16 = value.of.s16;
+                    break;
+                case ComponentValueKind.U16:
+                    raw.u16 = value.of.u16;
+                    break;
+                case ComponentValueKind.S32:
+                    raw.s32 = value.of.s32;
+                    break;
+                case ComponentValueKind.U32:
+                    raw.u32 = value.of.u32;
+                    break;
+                case ComponentValueKind.S64:
+                    raw.s64 = value.of.s64;
+                    break;
+                case ComponentValueKind.U64:
+                    raw.u64 = value.of.u64;
+                    break;
+                case ComponentValueKind.F32:
+                    raw.f32 = value.of.f32;
+                    break;
+                case ComponentValueKind.F64:
+                    raw.f64 = value.of.f64;
+                    break;
+                case ComponentValueKind.Char:
+                    raw.character = value.of.character;
+                    break;
+                case ComponentValueKind.String:
+                    raw.@string = value.of.@string;
+                    break;
+                default:
+                    throw new NotSupportedException($"Component value kind {value.kind} is not yet supported in optimized path");
+            }
+            
+            return raw;
         }
     }
 

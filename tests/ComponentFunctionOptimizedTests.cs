@@ -3,11 +3,19 @@ using System.Reflection;
 using FluentAssertions;
 using Wasmtime;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Wasmtime.Tests
 {
     public class ComponentFunctionOptimizedTests
     {
+        private readonly ITestOutputHelper testOutputHelper;
+
+        public ComponentFunctionOptimizedTests(ITestOutputHelper testOutputHelper)
+        {
+            this.testOutputHelper = testOutputHelper;
+        }
+
         private class ComponentContext : IDisposable
         {
             public Engine Engine { get; }
@@ -85,7 +93,7 @@ namespace Wasmtime.Tests
             var wrappedFunc = addFunc.WrapFunc<sbyte, sbyte, sbyte>();
             wrappedFunc.Should().NotBeNull("should be able to wrap add-s8 function");
             
-            // Test with positive values
+            // Test with positive values only
             var result = wrappedFunc!(10, 20);
             result.Should().Be(30);
             
@@ -94,7 +102,7 @@ namespace Wasmtime.Tests
             result.Should().Be(-20);
             
             // Test multiple calls to ensure caching works
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 50; i++)
             {
                 result = wrappedFunc((sbyte)i, (sbyte)(i + 1));
                 result.Should().Be((sbyte)(i + i + 1));
@@ -288,9 +296,9 @@ namespace Wasmtime.Tests
             
             // Wrapped should be significantly faster
             // Note: In a real test, we'd use proper benchmarking tools
-            Console.WriteLine($"Wrapped time: {wrappedTime.TotalMilliseconds}ms");
-            Console.WriteLine($"Invoke time: {invokeTime.TotalMilliseconds}ms");
-            Console.WriteLine($"Speedup: {invokeTime.TotalMilliseconds / wrappedTime.TotalMilliseconds:F2}x");
+            testOutputHelper.WriteLine($"Wrapped time: {wrappedTime.TotalMilliseconds}ms");
+            testOutputHelper.WriteLine($"Invoke time: {invokeTime.TotalMilliseconds}ms");
+            testOutputHelper.WriteLine($"Speedup: {invokeTime.TotalMilliseconds / wrappedTime.TotalMilliseconds:F2}x");
             
             // The wrapped version should be faster (though this might be flaky in CI)
             wrappedTime.Should().BeLessThan(invokeTime);

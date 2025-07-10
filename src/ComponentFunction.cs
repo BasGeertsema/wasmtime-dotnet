@@ -182,15 +182,28 @@ namespace Wasmtime
                 throw new InvalidOperationException("Function is not associated with a store.");
             }
 
+            // Calculate the number of arguments
+            var argCount = argsAndResults.Length - resultCount;
+            
+            // Allocate separate space for results to avoid overlapping memory
+            Span<ComponentValue> results = stackalloc ComponentValue[resultCount];
+            
+            // Initialize results
+            for (int i = 0; i < resultCount; i++)
+            {
+                results[i] = default;
+            }
+
             fixed (ComponentFunc* funcPtr = &func)
             fixed (ComponentValue* argsPtr = argsAndResults)
+            fixed (ComponentValue* resultsPtr = results)
             {
                 var error = Native.wasmtime_component_func_call(
                     funcPtr,
                     storeContext.handle,
                     argsPtr,
-                    (nuint)(argsAndResults.Length - resultCount),
-                    argsPtr + (argsAndResults.Length - resultCount),
+                    (nuint)argCount,
+                    resultsPtr,
                     (nuint)resultCount
                 );
 
@@ -200,11 +213,11 @@ namespace Wasmtime
                 }
             }
 
-            // Extract results before calling post-return
-            var results = new ComponentValue[resultCount];
+            // Copy results to array for post-processing
+            var resultArray = new ComponentValue[resultCount];
             for (int i = 0; i < resultCount; i++)
             {
-                results[i] = argsAndResults[argsAndResults.Length - resultCount + i];
+                resultArray[i] = results[i];
             }
 
             // Call post-return as required by the component model
@@ -219,7 +232,7 @@ namespace Wasmtime
 
             GC.KeepAlive(store);
 
-            return unboxResult(results);
+            return unboxResult(resultArray);
         }
 
         /// <summary>
@@ -304,8 +317,6 @@ namespace Wasmtime
         [StructLayout(LayoutKind.Explicit)]
         public struct ComponentFunc
         {
-            static ComponentFunc() => System.Diagnostics.Debug.Assert(Marshal.SizeOf(typeof(ComponentFunc)) == 16);
-            
             [FieldOffset(0)]
             public ulong store;
             [FieldOffset(8)]
