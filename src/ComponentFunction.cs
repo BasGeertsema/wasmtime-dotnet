@@ -6,7 +6,7 @@ namespace Wasmtime
     /// <summary>
     /// Represents a WebAssembly component function.
     /// </summary>
-    public class ComponentFunction
+    public partial class ComponentFunction
     {
         /// <summary>
         /// Determines if the underlying function reference is null.
@@ -17,6 +17,11 @@ namespace Wasmtime
         /// The store this function belongs to.
         /// </summary>
         public Store? Store => store;
+
+        /// <summary>
+        /// Cache for wrapped delegates to avoid repeated allocations.
+        /// </summary>
+        private object? _wrapperCache;
 
         /// <summary>
         /// Invokes the component function with no arguments.
@@ -152,6 +157,117 @@ namespace Wasmtime
 
                 GC.KeepAlive(store);
             }
+        }
+
+        /// <summary>
+        /// Invokes the component function with optimized marshaling.
+        /// Assumes arguments are the correct type, and the span is large enough to also hold the results.
+        /// </summary>
+        /// <typeparam name="TR">The return type</typeparam>
+        /// <param name="argsAndResults">Span of arguments and results as ComponentValue.</param>
+        /// <param name="resultCount">Number of results expected.</param>
+        /// <param name="resultKinds">Kinds of results expected.</param>
+        /// <param name="unboxResult">Function to unbox the result.</param>
+        /// <param name="storeContext">The StoreContext from the store.</param>
+        /// <returns>The return value from the function</returns>
+        private unsafe TR InvokeWithReturn<TR>(Span<ComponentValue> argsAndResults, int resultCount, ComponentValueKind[] resultKinds, Func<ComponentValue[], TR> unboxResult, StoreContext storeContext)
+        {
+            if (IsNull)
+            {
+                throw new InvalidOperationException("Cannot invoke a null function reference.");
+            }
+
+            if (store is null)
+            {
+                throw new InvalidOperationException("Function is not associated with a store.");
+            }
+
+            fixed (ComponentFunc* funcPtr = &func)
+            fixed (ComponentValue* argsPtr = argsAndResults)
+            {
+                var error = Native.wasmtime_component_func_call(
+                    funcPtr,
+                    storeContext.handle,
+                    argsPtr,
+                    (nuint)(argsAndResults.Length - resultCount),
+                    argsPtr + (argsAndResults.Length - resultCount),
+                    (nuint)resultCount
+                );
+
+                if (error != IntPtr.Zero)
+                {
+                    throw WasmtimeException.FromOwnedError(error);
+                }
+            }
+
+            // Extract results before calling post-return
+            var results = new ComponentValue[resultCount];
+            for (int i = 0; i < resultCount; i++)
+            {
+                results[i] = argsAndResults[argsAndResults.Length - resultCount + i];
+            }
+
+            // Call post-return as required by the component model
+            fixed (ComponentFunc* funcPtr = &func)
+            {
+                var error = Native.wasmtime_component_func_post_return(funcPtr, storeContext.handle);
+                if (error != IntPtr.Zero)
+                {
+                    throw WasmtimeException.FromOwnedError(error);
+                }
+            }
+
+            GC.KeepAlive(store);
+
+            return unboxResult(results);
+        }
+
+        /// <summary>
+        /// Invokes the component function with optimized marshaling and no return value.
+        /// </summary>
+        /// <param name="arguments">Span of arguments as ComponentValue.</param>
+        /// <param name="storeContext">The StoreContext from the store.</param>
+        private unsafe void InvokeWithoutReturn(Span<ComponentValue> arguments, StoreContext storeContext)
+        {
+            if (IsNull)
+            {
+                throw new InvalidOperationException("Cannot invoke a null function reference.");
+            }
+
+            if (store is null)
+            {
+                throw new InvalidOperationException("Function is not associated with a store.");
+            }
+
+            fixed (ComponentFunc* funcPtr = &func)
+            fixed (ComponentValue* argsPtr = arguments)
+            {
+                var error = Native.wasmtime_component_func_call(
+                    funcPtr,
+                    storeContext.handle,
+                    argsPtr,
+                    (nuint)arguments.Length,
+                    null,
+                    0
+                );
+
+                if (error != IntPtr.Zero)
+                {
+                    throw WasmtimeException.FromOwnedError(error);
+                }
+            }
+
+            // Call post-return as required by the component model
+            fixed (ComponentFunc* funcPtr = &func)
+            {
+                var error = Native.wasmtime_component_func_post_return(funcPtr, storeContext.handle);
+                if (error != IntPtr.Zero)
+                {
+                    throw WasmtimeException.FromOwnedError(error);
+                }
+            }
+
+            GC.KeepAlive(store);
         }
 
         internal ComponentFunction(Store store, ComponentFunc func)
