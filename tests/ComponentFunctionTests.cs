@@ -264,7 +264,7 @@ namespace Wasmtime.Tests
             ((ComponentValueBox)result!).AsS8().Should().Be(30);
             
             // Test with negative values
-            args = new ComponentValueBox[] { (sbyte)-50, (sbyte)30 };
+            args = [(sbyte)-50, (sbyte)30];
             result = addFunc.Invoke(args);
             ((ComponentValueBox)result!).AsS8().Should().Be(-20);
         }
@@ -291,7 +291,7 @@ namespace Wasmtime.Tests
             ((ComponentValueBox)result!).AsS16().Should().Be(3000);
             
             // Test negative values
-            args = new ComponentValueBox[] { (short)-5000, (short)3000 };
+            args = [(short)-5000, (short)3000];
             result = addFunc.Invoke(args);
             ((ComponentValueBox)result!).AsS16().Should().Be(-2000);
         }
@@ -318,7 +318,7 @@ namespace Wasmtime.Tests
             ((ComponentValueBox)result!).AsS32().Should().Be(300000);
             
             // Test negative values
-            args = new ComponentValueBox[] { -1000000, 500000 };
+            args = [-1000000, 500000];
             result = addFunc.Invoke(args);
             ((ComponentValueBox)result!).AsS32().Should().Be(-500000);
         }
@@ -409,7 +409,7 @@ namespace Wasmtime.Tests
             resultList.Should().Equal(new int[] { 5, 4, 3, 2, 1 });
             
             // Test with single element
-            args = new ComponentValueBox[] { ComponentValueBox.FromList(new int[] { 42 }) };
+            args = [ComponentValueBox.FromList([42])];
             result = reverseFunc.Invoke(args);
             result.Should().NotBeNull();
             resultList = ((ComponentValueBox)result!).AsList<int>();
@@ -417,7 +417,7 @@ namespace Wasmtime.Tests
             resultList.Should().Equal(new int[] { 42 });
             
             // Test with negative numbers
-            args = new ComponentValueBox[] { ComponentValueBox.FromList(new int[] { -10, -20, -30, 40, 50 }) };
+            args = [ComponentValueBox.FromList([-10, -20, -30, 40, 50])];
             result = reverseFunc.Invoke(args);
             result.Should().NotBeNull();
             resultList = ((ComponentValueBox)result!).AsList<int>();
@@ -431,7 +431,7 @@ namespace Wasmtime.Tests
             var reverseFunc = GetComponentFunction("reverse-list-person");
             
             // Test with empty list
-            var emptyList = new ComponentValueBox[0];
+            var emptyList = Array.Empty<ComponentValueBox>();
             var args = new ComponentValueBox[] { ComponentValueBox.FromList(emptyList) };
             var result = reverseFunc!.Invoke(args);
             result.Should().NotBeNull();
@@ -442,7 +442,7 @@ namespace Wasmtime.Tests
             if (resultBox.ObjectValue is int[] intArray && intArray.Length == 0)
             {
                 // Empty list case - convert to empty ComponentValueBox array
-                resultList = Array.Empty<ComponentValueBox>();
+                resultList = [];
             }
             else
             {
@@ -452,13 +452,12 @@ namespace Wasmtime.Tests
             resultList.Should().BeEmpty();
             
             // Test with single person
-            var person1 = ComponentValueBox.FromRecord(new (string, ComponentValueBox)[]
-            {
+            var person1 = ComponentValueBox.FromRecord([
                 ("name", "Alice"),
                 ("age", (byte)30)
-            });
+            ]);
             var singlePersonList = new ComponentValueBox[] { person1 };
-            args = new ComponentValueBox[] { ComponentValueBox.FromList(singlePersonList) };
+            args = [ComponentValueBox.FromList(singlePersonList)];
             
             result = reverseFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -474,18 +473,16 @@ namespace Wasmtime.Tests
             resultPerson[1].Item2.AsU8().Should().Be(30);
             
             // Test with multiple people
-            var person2 = ComponentValueBox.FromRecord(new (string, ComponentValueBox)[]
-            {
+            var person2 = ComponentValueBox.FromRecord([
                 ("name", "Bob"),
                 ("age", (byte)25)
-            });
-            var person3 = ComponentValueBox.FromRecord(new (string, ComponentValueBox)[]
-            {
+            ]);
+            var person3 = ComponentValueBox.FromRecord([
                 ("name", "Charlie"),
                 ("age", (byte)35)
-            });
+            ]);
             var multiplePersonList = new ComponentValueBox[] { person1, person2, person3 };
-            args = new ComponentValueBox[] { ComponentValueBox.FromList(multiplePersonList) };
+            args = [ComponentValueBox.FromList(multiplePersonList)];
             
             result = reverseFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -507,18 +504,16 @@ namespace Wasmtime.Tests
             resultPerson[1].Item2.AsU8().Should().Be(30);
             
             // Test with people having empty names and zero ages
-            var person4 = ComponentValueBox.FromRecord(new (string, ComponentValueBox)[]
-            {
+            var person4 = ComponentValueBox.FromRecord([
                 ("name", ""),
                 ("age", (byte)0)
-            });
-            var person5 = ComponentValueBox.FromRecord(new (string, ComponentValueBox)[]
-            {
+            ]);
+            var person5 = ComponentValueBox.FromRecord([
                 ("name", "Test"),
                 ("age", (byte)100)
-            });
+            ]);
             var edgeCaseList = new ComponentValueBox[] { person4, person5 };
-            args = new ComponentValueBox[] { ComponentValueBox.FromList(edgeCaseList) };
+            args = [ComponentValueBox.FromList(edgeCaseList)];
             
             result = reverseFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -542,7 +537,7 @@ namespace Wasmtime.Tests
             var echoFunc = GetComponentFunction("echo-tuple2");
             
             // Create a tuple of (f32, s32) values
-            var tupleValue = ComponentValueBox.FromTuple(new object[] { 3.14f, 42 });
+            var tupleValue = ComponentValueBox.FromTuple([3.14f, 42]);
             var args = new ComponentValueBox[] { tupleValue };
             
             var result = echoFunc!.Invoke(args);
@@ -555,8 +550,8 @@ namespace Wasmtime.Tests
             resultTuple[1].Should().BeOfType<int>().Which.Should().Be(42);
             
             // Test with negative values
-            tupleValue = ComponentValueBox.FromTuple(new object[] { -2.5f, -100 });
-            args = new ComponentValueBox[] { tupleValue };
+            tupleValue = ComponentValueBox.FromTuple([-2.5f, -100]);
+            args = [tupleValue];
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
             
@@ -567,8 +562,8 @@ namespace Wasmtime.Tests
             resultTuple[1].Should().BeOfType<int>().Which.Should().Be(-100);
             
             // Test with zero values
-            tupleValue = ComponentValueBox.FromTuple(new object[] { 0.0f, 0 });
-            args = new ComponentValueBox[] { tupleValue };
+            tupleValue = ComponentValueBox.FromTuple([0.0f, 0]);
+            args = [tupleValue];
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
             
@@ -609,13 +604,13 @@ namespace Wasmtime.Tests
             resultRecord[1].Item2.AsU8().Should().Be(30);
             
             // Test with different values
-            fields = new (string, ComponentValueBox)[]
-            {
+            fields =
+            [
                 ("name", "Bob"),
                 ("age", (byte)25)
-            };
+            ];
             recordValue = ComponentValueBox.FromRecord(fields);
-            args = new ComponentValueBox[] { recordValue };
+            args = [recordValue];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -630,13 +625,13 @@ namespace Wasmtime.Tests
             resultRecord[1].Item2.AsU8().Should().Be(25);
             
             // Test with empty name
-            fields = new (string, ComponentValueBox)[]
-            {
+            fields =
+            [
                 ("name", ""),
                 ("age", (byte)0)
-            };
+            ];
             recordValue = ComponentValueBox.FromRecord(fields);
-            args = new ComponentValueBox[] { recordValue };
+            args = [recordValue];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -670,7 +665,7 @@ namespace Wasmtime.Tests
             
             // Test case 2: shipped(s32)
             var shippedVariant = ComponentValueBox.FromVariant("shipped", (ComponentValueBox)42);
-            args = new ComponentValueBox[] { shippedVariant };
+            args = [shippedVariant];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -683,7 +678,7 @@ namespace Wasmtime.Tests
             
             // Test case 3: delivered(string)
             var deliveredVariant = ComponentValueBox.FromVariant("delivered", (ComponentValueBox)"Package delivered to recipient");
-            args = new ComponentValueBox[] { deliveredVariant };
+            args = [deliveredVariant];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -696,7 +691,7 @@ namespace Wasmtime.Tests
             
             // Test with negative number for shipped
             shippedVariant = ComponentValueBox.FromVariant("shipped", (ComponentValueBox)(-100));
-            args = new ComponentValueBox[] { shippedVariant };
+            args = [shippedVariant];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -709,7 +704,7 @@ namespace Wasmtime.Tests
             
             // Test with empty string for delivered
             deliveredVariant = ComponentValueBox.FromVariant("delivered", (ComponentValueBox)"");
-            args = new ComponentValueBox[] { deliveredVariant };
+            args = [deliveredVariant];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -739,7 +734,7 @@ namespace Wasmtime.Tests
             
             // Test case 2: green
             var greenEnum = ComponentValueBox.FromEnum("green");
-            args = new ComponentValueBox[] { greenEnum };
+            args = [greenEnum];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -750,7 +745,7 @@ namespace Wasmtime.Tests
             
             // Test case 3: blue
             var blueEnum = ComponentValueBox.FromEnum("blue");
-            args = new ComponentValueBox[] { blueEnum };
+            args = [blueEnum];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -791,7 +786,7 @@ namespace Wasmtime.Tests
             
             // Test case 2: None
             var noneOption = ComponentValueBox.FromOption(null);
-            args = new ComponentValueBox[] { noneOption };
+            args = [noneOption];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -800,14 +795,14 @@ namespace Wasmtime.Tests
             resultOption.Should().BeNull(); // None is represented as null
             
             // Test case 3: Some(person) with different values
-            personFields = new (string, ComponentValueBox)[]
-            {
+            personFields =
+            [
                 ("name", "Bob"),
                 ("age", (byte)25)
-            };
+            ];
             personRecord = ComponentValueBox.FromRecord(personFields);
             someOption = ComponentValueBox.FromOption(personRecord);
-            args = new ComponentValueBox[] { someOption };
+            args = [someOption];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -824,14 +819,14 @@ namespace Wasmtime.Tests
             resultPerson[1].Item2.AsU8().Should().Be(25);
             
             // Test case 4: Some(person) with empty name and zero age
-            personFields = new (string, ComponentValueBox)[]
-            {
+            personFields =
+            [
                 ("name", ""),
                 ("age", (byte)0)
-            };
+            ];
             personRecord = ComponentValueBox.FromRecord(personFields);
             someOption = ComponentValueBox.FromOption(personRecord);
-            args = new ComponentValueBox[] { someOption };
+            args = [someOption];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -854,7 +849,7 @@ namespace Wasmtime.Tests
             var echoFunc = GetComponentFunction("echo-flags");
             
             // Test case 1: No flags set (empty)
-            var emptyFlags = ComponentValueBox.FromFlags(new string[] { });
+            var emptyFlags = ComponentValueBox.FromFlags([]);
             var args = new ComponentValueBox[] { emptyFlags };
             
             var result = echoFunc!.Invoke(args);
@@ -865,8 +860,8 @@ namespace Wasmtime.Tests
             resultFlags.Should().BeEmpty();
             
             // Test case 2: Single flag (GET)
-            var getFlag = ComponentValueBox.FromFlags(new string[] { "get" });
-            args = new ComponentValueBox[] { getFlag };
+            var getFlag = ComponentValueBox.FromFlags(["get"]);
+            args = [getFlag];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -877,8 +872,8 @@ namespace Wasmtime.Tests
             resultFlags.Should().Contain("get");
             
             // Test case 3: Multiple flags (GET, POST)
-            var multipleFlags = ComponentValueBox.FromFlags(new string[] { "get", "post" });
-            args = new ComponentValueBox[] { multipleFlags };
+            var multipleFlags = ComponentValueBox.FromFlags(["get", "post"]);
+            args = [multipleFlags];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -890,8 +885,8 @@ namespace Wasmtime.Tests
             resultFlags.Should().Contain("post");
             
             // Test case 4: All flags
-            var allFlags = ComponentValueBox.FromFlags(new string[] { "get", "post", "put", "delete" });
-            args = new ComponentValueBox[] { allFlags };
+            var allFlags = ComponentValueBox.FromFlags(["get", "post", "put", "delete"]);
+            args = [allFlags];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -905,8 +900,8 @@ namespace Wasmtime.Tests
             resultFlags.Should().Contain("delete");
             
             // Test case 5: Flags in different order
-            var reorderedFlags = ComponentValueBox.FromFlags(new string[] { "delete", "put", "get" });
-            args = new ComponentValueBox[] { reorderedFlags };
+            var reorderedFlags = ComponentValueBox.FromFlags(["delete", "put", "get"]);
+            args = [reorderedFlags];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -936,7 +931,7 @@ namespace Wasmtime.Tests
             
             // Test case 2: Extended ASCII / Latin-1
             var charAccent = ComponentValueBox.FromChar('é'); // U+00E9
-            args = new ComponentValueBox[] { charAccent };
+            args = [charAccent];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -946,7 +941,7 @@ namespace Wasmtime.Tests
             
             // Test case 3: CJK character (within BMP)
             var charChinese = ComponentValueBox.FromChar('中'); // U+4E2D
-            args = new ComponentValueBox[] { charChinese };
+            args = [charChinese];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -956,7 +951,7 @@ namespace Wasmtime.Tests
             
             // Test case 4: Character at the edge of BMP
             var charBmpEdge = ComponentValueBox.FromChar('\uFFFD'); // U+FFFD (Replacement Character)
-            args = new ComponentValueBox[] { charBmpEdge };
+            args = [charBmpEdge];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -967,7 +962,7 @@ namespace Wasmtime.Tests
             // Test case 5: Character beyond BMP (emoji)
             // 😀 (U+1F600) - cannot be represented as a single C# char
             var charEmoji = ComponentValueBox.FromUnicodeScalar(0x1F600);
-            args = new ComponentValueBox[] { charEmoji };
+            args = [charEmoji];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -978,7 +973,7 @@ namespace Wasmtime.Tests
             // Test case 6: Mathematical Alphanumeric Symbols
             // 𝐀 (U+1D400) - Mathematical Bold Capital A
             var charMath = ComponentValueBox.FromUnicodeScalar(0x1D400);
-            args = new ComponentValueBox[] { charMath };
+            args = [charMath];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -988,7 +983,7 @@ namespace Wasmtime.Tests
             
             // Test case 7: Character just before surrogate range
             var charBeforeSurrogate = ComponentValueBox.FromUnicodeScalar(0xD7FF);
-            args = new ComponentValueBox[] { charBeforeSurrogate };
+            args = [charBeforeSurrogate];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -998,7 +993,7 @@ namespace Wasmtime.Tests
             
             // Test case 8: Character just after surrogate range
             var charAfterSurrogate = ComponentValueBox.FromUnicodeScalar(0xE000);
-            args = new ComponentValueBox[] { charAfterSurrogate };
+            args = [charAfterSurrogate];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -1008,7 +1003,7 @@ namespace Wasmtime.Tests
             
             // Test case 9: Maximum valid Unicode scalar value
             var charMax = ComponentValueBox.FromUnicodeScalar(0x10FFFF);
-            args = new ComponentValueBox[] { charMax };
+            args = [charMax];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();
@@ -1018,7 +1013,7 @@ namespace Wasmtime.Tests
             
             // Test case 10: Null character
             var charNull = ComponentValueBox.FromChar('\0');
-            args = new ComponentValueBox[] { charNull };
+            args = [charNull];
             
             result = echoFunc.Invoke(args);
             result.Should().NotBeNull();

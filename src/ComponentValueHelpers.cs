@@ -1,5 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 
 namespace Wasmtime
@@ -9,6 +14,10 @@ namespace Wasmtime
     /// </summary>
     internal static class ComponentValueHelpers
     {
+
+        
+        
+        
         /// <summary>
         /// Convert a ComponentValueBox to a native ComponentValue
         /// </summary>
@@ -88,33 +97,33 @@ namespace Wasmtime
                         var elementCount = array.Length;
                         ComponentValue* componentValues = null;
                         
-                        if (elementCount > 0)
+                        // Always allocate memory, even for empty arrays
+                        // Some Wasmtime C API functions expect non-null data pointers for empty vectors
+                        var allocSize = Math.Max(1, elementCount * sizeof(ComponentValue));
+                        componentValues = (ComponentValue*)Marshal.AllocHGlobal(allocSize);
+                        
+                        for (int i = 0; i < elementCount; i++)
                         {
-                            componentValues = (ComponentValue*)Marshal.AllocHGlobal(elementCount * sizeof(ComponentValue));
-                            
-                            for (int i = 0; i < elementCount; i++)
+                            var element = array.GetValue(i);
+                            ComponentValueBox elementBox = element switch
                             {
-                                var element = array.GetValue(i);
-                                ComponentValueBox elementBox = element switch
-                                {
-                                    ComponentValueBox boxed => boxed,
-                                    bool b => b,
-                                    sbyte s8 => s8,
-                                    byte u8 => u8,
-                                    short s16 => s16,
-                                    ushort u16 => u16,
-                                    int s32 => s32,
-                                    uint u32 => u32,
-                                    long s64 => s64,
-                                    ulong u64 => u64,
-                                    float f32 => f32,
-                                    double f64 => f64,
-                                    char c => c,
-                                    string s => s,
-                                    _ => throw new NotSupportedException($"Unsupported list element type: {element?.GetType()}")
-                                };
-                                componentValues[i] = FromValueBox(store, elementBox);
-                            }
+                                ComponentValueBox boxed => boxed,
+                                bool b => b,
+                                sbyte s8 => s8,
+                                byte u8 => u8,
+                                short s16 => s16,
+                                ushort u16 => u16,
+                                int s32 => s32,
+                                uint u32 => u32,
+                                long s64 => s64,
+                                ulong u64 => u64,
+                                float f32 => f32,
+                                double f64 => f64,
+                                char c => c,
+                                string s => s,
+                                _ => throw new NotSupportedException($"Unsupported list element type: {element?.GetType()}")
+                            };
+                            componentValues[i] = FromValueBox(store, elementBox);
                         }
                         
                         value.of.list = new ValList
@@ -131,36 +140,36 @@ namespace Wasmtime
                         var elementCount = tupleElements.Length;
                         ComponentValue* componentValues = null;
                         
-                        if (elementCount > 0)
+                        // Always allocate memory, even for empty tuples
+                        // Some Wasmtime C API functions expect non-null data pointers for empty vectors
+                        var allocSize = Math.Max(1, elementCount * sizeof(ComponentValue));
+                        componentValues = (ComponentValue*)Marshal.AllocHGlobal(allocSize);
+                        
+                        for (int i = 0; i < elementCount; i++)
                         {
-                            componentValues = (ComponentValue*)Marshal.AllocHGlobal(elementCount * sizeof(ComponentValue));
-                            
-                            for (int i = 0; i < elementCount; i++)
+                            var element = tupleElements[i];
+                            ComponentValueBox elementBox = element switch
                             {
-                                var element = tupleElements[i];
-                                ComponentValueBox elementBox = element switch
-                                {
-                                    ComponentValueBox boxed => boxed,
-                                    bool b => b,
-                                    sbyte s8 => s8,
-                                    byte u8 => u8,
-                                    short s16 => s16,
-                                    ushort u16 => u16,
-                                    int s32 => s32,
-                                    uint u32 => u32,
-                                    long s64 => s64,
-                                    ulong u64 => u64,
-                                    float f32 => f32,
-                                    double f64 => f64,
-                                    char c => c,
-                                    string s => s,
-                                    object[] nested => ComponentValueBox.FromTuple(nested),
-                                    (string, ComponentValueBox)[] record => ComponentValueBox.FromRecord(record),
-                                    ValueTuple<string, ComponentValueBox?> variantTuple => ComponentValueBox.FromVariant(variantTuple.Item1, variantTuple.Item2),
-                                    _ => throw new NotSupportedException($"Unsupported tuple element type: {element?.GetType()}")
-                                };
-                                componentValues[i] = FromValueBox(store, elementBox);
-                            }
+                                ComponentValueBox boxed => boxed,
+                                bool b => b,
+                                sbyte s8 => s8,
+                                byte u8 => u8,
+                                short s16 => s16,
+                                ushort u16 => u16,
+                                int s32 => s32,
+                                uint u32 => u32,
+                                long s64 => s64,
+                                ulong u64 => u64,
+                                float f32 => f32,
+                                double f64 => f64,
+                                char c => c,
+                                string s => s,
+                                object[] nested => ComponentValueBox.FromTuple(nested),
+                                (string, ComponentValueBox)[] record => ComponentValueBox.FromRecord(record),
+                                ValueTuple<string, ComponentValueBox?> variantTuple => ComponentValueBox.FromVariant(variantTuple.Item1, variantTuple.Item2),
+                                _ => throw new NotSupportedException($"Unsupported tuple element type: {element?.GetType()}")
+                            };
+                            componentValues[i] = FromValueBox(store, elementBox);
                         }
                         
                         value.of.tuple = new ValTuple
@@ -177,28 +186,28 @@ namespace Wasmtime
                         var fieldCount = recordFields.Length;
                         ValRecordEntry* recordEntries = null;
                         
-                        if (fieldCount > 0)
+                        // Always allocate memory, even for empty records
+                        // Some Wasmtime C API functions expect non-null data pointers for empty vectors
+                        var allocSize = Math.Max(1, fieldCount * sizeof(ValRecordEntry));
+                        recordEntries = (ValRecordEntry*)Marshal.AllocHGlobal(allocSize);
+                        
+                        for (int i = 0; i < fieldCount; i++)
                         {
-                            recordEntries = (ValRecordEntry*)Marshal.AllocHGlobal(fieldCount * sizeof(ValRecordEntry));
+                            var (name, fieldValue) = recordFields[i];
                             
-                            for (int i = 0; i < fieldCount; i++)
+                            // Allocate and copy field name
+                            var nameBytes = Encoding.UTF8.GetBytes(name);
+                            var namePtr = Marshal.AllocHGlobal(nameBytes.Length);
+                            Marshal.Copy(nameBytes, 0, namePtr, nameBytes.Length);
+                            
+                            recordEntries[i].name = new WasmName
                             {
-                                var (name, fieldValue) = recordFields[i];
-                                
-                                // Allocate and copy field name
-                                var nameBytes = Encoding.UTF8.GetBytes(name);
-                                var namePtr = Marshal.AllocHGlobal(nameBytes.Length);
-                                Marshal.Copy(nameBytes, 0, namePtr, nameBytes.Length);
-                                
-                                recordEntries[i].name = new WasmName
-                                {
-                                    size = (nuint)nameBytes.Length,
-                                    data = (byte*)namePtr
-                                };
-                                
-                                // Convert field value
-                                recordEntries[i].val = FromValueBox(store, fieldValue);
-                            }
+                                size = (nuint)nameBytes.Length,
+                                data = (byte*)namePtr
+                            };
+                            
+                            // Convert field value
+                            recordEntries[i].val = FromValueBox(store, fieldValue);
                         }
                         
                         value.of.record = new ValRecord
@@ -276,22 +285,22 @@ namespace Wasmtime
                         var flagCount = flagNames.Length;
                         WasmName* flagsData = null;
                         
-                        if (flagCount > 0)
+                        // Always allocate memory, even for empty flags
+                        // Some Wasmtime C API functions expect non-null data pointers for empty vectors
+                        var allocSize = Math.Max(1, flagCount * sizeof(WasmName));
+                        flagsData = (WasmName*)Marshal.AllocHGlobal(allocSize);
+                        
+                        for (int i = 0; i < flagCount; i++)
                         {
-                            flagsData = (WasmName*)Marshal.AllocHGlobal(flagCount * sizeof(WasmName));
+                            var flagBytes = Encoding.UTF8.GetBytes(flagNames[i]);
+                            var flagPtr = Marshal.AllocHGlobal(flagBytes.Length);
+                            Marshal.Copy(flagBytes, 0, flagPtr, flagBytes.Length);
                             
-                            for (int i = 0; i < flagCount; i++)
+                            flagsData[i] = new WasmName
                             {
-                                var flagBytes = Encoding.UTF8.GetBytes(flagNames[i]);
-                                var flagPtr = Marshal.AllocHGlobal(flagBytes.Length);
-                                Marshal.Copy(flagBytes, 0, flagPtr, flagBytes.Length);
-                                
-                                flagsData[i] = new WasmName
-                                {
-                                    size = (nuint)flagBytes.Length,
-                                    data = (byte*)flagPtr
-                                };
-                            }
+                                size = (nuint)flagBytes.Length,
+                                data = (byte*)flagPtr
+                            };
                         }
                         
                         value.of.flags = new ValFlags
@@ -590,7 +599,8 @@ namespace Wasmtime
             if (value == null) return;
 
             // Free allocated strings
-            if (value->kind == ComponentValueKind.String && value->of.@string.data != null)
+            // TODO! sometimes the data IS filled with a value even if size = 0 and we set it to null.. why is this?
+            if (value->kind == ComponentValueKind.String && value->of.@string.data != null && value->of.list.size > 0)
             {
                 Marshal.FreeHGlobal((IntPtr)value->of.@string.data);
                 value->of.@string.data = null;
@@ -598,17 +608,19 @@ namespace Wasmtime
             }
 
             // Free allocated lists
-            if (value->kind == ComponentValueKind.List && value->of.list.data != null)
+            // TODO! sometimes when we an EMPTY list is passed around then we data ptr contains 0x08? but list.size is 0.
+            // for now we check the size but we should investigate this further.
+            if (value->kind == ComponentValueKind.List && value->of.list.data != null && value->of.list.size > 0)
             {
-                // First free any nested values in the list (only if size > 0)
+                // First free any nested values in the list
                 for (nuint i = 0; i < value->of.list.size; i++)
                 {
                     ReleaseValue(&value->of.list.data[i]);
                 }
                 
                 // Then free the list array itself
-                // Note: We always allocate memory even for empty lists, so always free it
                 Marshal.FreeHGlobal((IntPtr)value->of.list.data);
+
                 value->of.list.data = null;
                 value->of.list.size = 0;
             }

@@ -8,6 +8,121 @@ namespace Wasmtime
     public partial class ComponentFunction
     {
         /// <summary>
+        /// Check if a ComponentValueKind needs cleanup after use
+        /// </summary>
+        private static bool NeedsCleanup(ComponentValueKind kind)
+        {
+            return kind switch
+            {
+                ComponentValueKind.String => true,
+                ComponentValueKind.List => true,
+                ComponentValueKind.Record => true,
+                ComponentValueKind.Tuple => true,
+                ComponentValueKind.Variant => true,
+                ComponentValueKind.Option => true,
+                ComponentValueKind.Result => true,
+                ComponentValueKind.Flags => true,
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// Check if a ComponentValue has allocated data that needs cleanup
+        /// </summary>
+        private static unsafe bool HasAllocatedData(in ComponentValue value)
+        {
+            return value.kind switch
+            {
+                ComponentValueKind.String => value.of.@string.data != null,
+                ComponentValueKind.List => value.of.list.data != null,
+                ComponentValueKind.Record => value.of.record.data != null,
+                ComponentValueKind.Tuple => false, //value.of.tuple.data != null,
+                ComponentValueKind.Variant => value.of.variant.value != null || value.of.variant.discriminant.data != null,
+                ComponentValueKind.Option => value.of.option != null,
+                ComponentValueKind.Result => value.of.result.value != null,
+                // we need to check .size > 0 here because data is 0x08 sometimes when we set it to null initially?!
+                ComponentValueKind.Flags => value.of.flags.data != null && value.of.flags.size > 0,
+                _ => false
+            };
+        }
+
+        /// <summary>
+        /// Get the number of ComponentValue slots required for a type
+        /// </summary>
+        private static int GetComponentValueSlotCount(Type type)
+        {
+            if (type.IsTupleType())
+            {
+                return type.GetGenericArguments().Length;
+            }
+            return 1;
+        }
+
+        /// <summary>
+        /// Box a tuple value into a single ComponentValue
+        /// </summary>
+        private static unsafe ComponentValue BoxTupleToComponentValue<T>(StoreContext storeContext, Store store, T value, ComponentValue* data)
+        {
+            var type = typeof(T);
+            
+            // For ValueTuple<int, int>, we can cast directly
+            if (type == typeof(ValueTuple<int, int>))
+            {
+                var tuple = (ValueTuple<int, int>)(object)value!;
+                var converter1 = ComponentValueRaw.Converter<int>();
+                var converter2 = ComponentValueRaw.Converter<int>();
+                
+                // Allocate space for tuple elements
+                //var data = (ComponentValue*)System.Runtime.InteropServices.Marshal.AllocHGlobal(sizeof(ComponentValue) * 2);
+                
+                var raw1 = default(ComponentValueRaw);
+                converter1.Box(storeContext, store, ref raw1, tuple.Item1);
+                data[0] = raw1.ToComponentValue(converter1.Kind);
+                
+                var raw2 = default(ComponentValueRaw);
+                converter2.Box(storeContext, store, ref raw2, tuple.Item2);
+                data[1] = raw2.ToComponentValue(converter2.Kind);
+                
+                var result = default(ComponentValue);
+                result.kind = ComponentValueKind.Tuple;
+                result.of.tuple.data = data;
+                result.of.tuple.size = 2;
+                
+                return result;
+            }
+            else if (type == typeof(ValueTuple<int, int, int>))
+            {
+                var tuple = (ValueTuple<int, int, int>)(object)value!;
+                var converter = ComponentValueRaw.Converter<int>();
+                
+                // Allocate space for tuple elements
+                //var data = (ComponentValue*)System.Runtime.InteropServices.Marshal.AllocHGlobal(sizeof(ComponentValue) * 3);
+                
+                var raw1 = default(ComponentValueRaw);
+                converter.Box(storeContext, store, ref raw1, tuple.Item1);
+                data[0] = raw1.ToComponentValue(converter.Kind);
+                
+                var raw2 = default(ComponentValueRaw);
+                converter.Box(storeContext, store, ref raw2, tuple.Item2);
+                data[1] = raw2.ToComponentValue(converter.Kind);
+                
+                var raw3 = default(ComponentValueRaw);
+                converter.Box(storeContext, store, ref raw3, tuple.Item3);
+                data[2] = raw3.ToComponentValue(converter.Kind);
+                
+                var result = default(ComponentValue);
+                result.kind = ComponentValueKind.Tuple;
+                result.of.tuple.data = data;
+                result.of.tuple.size = 3;
+                
+                return result;
+            }
+            else
+            {
+                throw new NotSupportedException($"Tuple type {type} is not yet supported in BoxTupleToComponentValue");
+            }
+        }
+        /// <summary>
         /// Attempt to wrap this function as an Action. Wrapped Action is faster than a normal Invoke call.
         /// </summary>
         /// <returns>An Action to invoke this function, or null if the type signature is incompatible.</returns>
@@ -74,7 +189,7 @@ namespace Wasmtime
                     finally
                     {
                         // Clean up any allocated memory for complex types
-                        if (converter.Kind == ComponentValueKind.String && args[0].of.@string.data != null)
+                        if (NeedsCleanup(converter.Kind) && HasAllocatedData(args[0]))
                         {
                             fixed (ComponentValue* argPtr = &args[0])
                             {
@@ -133,14 +248,14 @@ namespace Wasmtime
                     finally
                     {
                         // Clean up any allocated memory for complex types
-                        if (converter1.Kind == ComponentValueKind.String && args[0].of.@string.data != null)
+                        if (NeedsCleanup(converter1.Kind) && HasAllocatedData(args[0]))
                         {
                             fixed (ComponentValue* argPtr = &args[0])
                             {
                                 ComponentValueHelpers.ReleaseValue(argPtr);
                             }
                         }
-                        if (converter2.Kind == ComponentValueKind.String && args[1].of.@string.data != null)
+                        if (NeedsCleanup(converter2.Kind) && HasAllocatedData(args[1]))
                         {
                             fixed (ComponentValue* argPtr = &args[1])
                             {
@@ -190,7 +305,7 @@ namespace Wasmtime
                         var value = returnConverter.Unbox(store.Context, store, raw, results[0].kind);
 
                         // Clean up any allocated memory for complex types in the result
-                        if (returnConverter.Kind == ComponentValueKind.String && results[0].of.@string.data != null)
+                        if (NeedsCleanup(returnConverter.Kind) && HasAllocatedData(results[0]))
                         {
                             fixed (ComponentValue* resultPtr = &results[0])
                             {
@@ -237,9 +352,30 @@ namespace Wasmtime
                     var storeContext = store.Context;
 
                     // Convert parameter to ComponentValue
-                    var raw = default(ComponentValueRaw);
-                    paramConverter.Box(storeContext, store, ref raw, p0);
-                    argsAndResults[0] = raw.ToComponentValue(paramConverter.Kind);
+                    if (typeof(T).IsTupleType())
+                    {
+                        if (typeof(T).GetGenericTypeDefinition() == typeof(ValueTuple<,>))
+                        {
+                            ComponentValue* tupledata = stackalloc ComponentValue[2];
+                            
+                            // For tuples, we need to create a proper tuple ComponentValue
+                            argsAndResults[0] = BoxTupleToComponentValue(storeContext, store, p0, tupledata);
+                        }
+                        if (typeof(T).GetGenericTypeDefinition() == typeof(ValueTuple<,,>))
+                        {
+                            ComponentValue* tupledata = stackalloc ComponentValue[3];
+                            
+                            // For tuples, we need to create a proper tuple ComponentValue
+                            argsAndResults[0] = BoxTupleToComponentValue(storeContext, store, p0, tupledata);
+                        }
+                    }
+                    else
+                    {
+                        // For non-tuples, use the existing logic
+                        var raw = default(ComponentValueRaw);
+                        paramConverter.Box(storeContext, store, ref raw, p0);
+                        argsAndResults[0] = raw.ToComponentValue(paramConverter.Kind);
+                    }
 
                     try
                     {
@@ -250,7 +386,7 @@ namespace Wasmtime
                             var value = returnConverter.Unbox(store.Context, store, rawResult, results[0].kind);
 
                             // Clean up any allocated memory for complex types in the result
-                            if (returnConverter.Kind == ComponentValueKind.String && results[0].of.@string.data != null)
+                            if (NeedsCleanup(returnConverter.Kind) && HasAllocatedData(results[0]))
                             {
                                 fixed (ComponentValue* resultPtr = &results[0])
                                 {
@@ -264,7 +400,7 @@ namespace Wasmtime
                     finally
                     {
                         // Clean up any allocated memory for complex types in parameters
-                        if (paramConverter.Kind == ComponentValueKind.String && argsAndResults[0].of.@string.data != null)
+                        if (HasAllocatedData(argsAndResults[0]))
                         {
                             fixed (ComponentValue* argPtr = &argsAndResults[0])
                             {
@@ -327,7 +463,7 @@ namespace Wasmtime
                             var value = returnConverter.Unbox(store.Context, store, rawResult, results[0].kind);
 
                             // Clean up any allocated memory for complex types in the result
-                            if (returnConverter.Kind == ComponentValueKind.String && results[0].of.@string.data != null)
+                            if (NeedsCleanup(returnConverter.Kind) && HasAllocatedData(results[0]))
                             {
                                 fixed (ComponentValue* resultPtr = &results[0])
                                 {
@@ -341,14 +477,14 @@ namespace Wasmtime
                     finally
                     {
                         // Clean up any allocated memory for complex types in parameters
-                        if (converter1.Kind == ComponentValueKind.String && argsAndResults[0].of.@string.data != null)
+                        if (NeedsCleanup(converter1.Kind) && HasAllocatedData(argsAndResults[0]))
                         {
                             fixed (ComponentValue* argPtr = &argsAndResults[0])
                             {
                                 ComponentValueHelpers.ReleaseValue(argPtr);
                             }
                         }
-                        if (converter2.Kind == ComponentValueKind.String && argsAndResults[1].of.@string.data != null)
+                        if (NeedsCleanup(converter2.Kind) && HasAllocatedData(argsAndResults[1]))
                         {
                             fixed (ComponentValue* argPtr = &argsAndResults[1])
                             {

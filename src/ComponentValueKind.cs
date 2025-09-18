@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 namespace Wasmtime;
 
-internal enum ComponentValueKind : byte
+public enum ComponentValueKind : byte
 { 
     Bool = 0,
     S8 = 1,

@@ -50,12 +50,17 @@ interface business-rules {
     reverse-list-person: func(x: persons) -> persons;
     echo-tuple2: func(x :tuple<f32, s32>) -> tuple<f32, s32>;
     echo-tuple3: func(x :tuple<f32, s32, u8>) -> tuple<f32, s32, u8>;
+    add-tuple3: func(x :tuple<s32, s32, s32>) -> s32;
+    add-tuple2: func(x :tuple<s32, s32>) -> s32;
     echo-record: func(x: person) -> person;
     echo-variant: func(x: order-status) -> order-status;
     echo-enum: func(x: color) -> color;
     echo-option: func(x: option<person>) -> option<person>;
+    echo-option-s32: func(x: option<s32>) -> option<s32>;
     echo-flags: func(x: allowed-methods) -> allowed-methods;
     echo-char: func(x: char) -> char;
+    echo-result: func(x: result<s32, string>) -> result<s32, string>;
+    divide-numbers: func(x: s32, y: s32) -> result<s32, string>;
     open-resource: func() -> blob;
     close-resource: func(x :blob) -> bool;
     call-host-add-s32: func(x :s32, y :s32) -> s32;
